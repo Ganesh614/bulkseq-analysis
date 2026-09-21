@@ -4,6 +4,948 @@ output: html_document
 date: "2025-12-03"
 ---
 ```{r}
+library(limma)
+library(edgeR)
+library(tidyverse)
+library(DESeq2)
+```
+
+#load the .tsv file
+```{r}
+count_matrix_sudipta <- read.delim("D:/sudipta_bulk_analysis/new_analysis/RSEM_gene_count_matrix_sudipta.tsv")
+```
+```{r}
+count_matrix_sudipta <- separate(count_matrix_sudipta,col = "X", into = c("Ensemble_Id","Gene_Id"),sep ="_")
+
+```
+
+```{r}
+count_matrix_sudipta
+count_matrix_sudipta_new <- count_matrix_sudipta[, -c(1,1)]
+colnames(count_matrix_sudipta_new)
+head(count_matrix_sudipta_new)
+column_matrix_no4 <- count_matrix_sudipta_new[ , 1:10]
+column_matrix_no4
+
+write.csv(column_matrix_no4, "D:/sudipta_bulk_analysis/new_analysis/new_sudipta_soumita/column_matrix_no4.csv", row.names = TRUE)
+column_matrix_no4 <- read.csv("D:/sudipta_bulk_analysis/new_analysis/new_sudipta_soumita/column_matrix_no4.csv", header = TRUE)
+
+```
+
+```{r}
+
+row.names(column_matrix_no4) <- column_matrix_no4$Gene_Id
+```
+```{r}
+# ── Option 1: Make duplicates unique (RECOMMENDED) ───────────────────────
+# Appends .1, .2 etc. to duplicate names — keeps all genes
+rownames(column_matrix_no4) <- make.unique(column_matrix_no4$Gene_Id)
+column_matrix_no4$Gene_Id <- NULL
+
+# Check it worked
+any(duplicated(rownames(column_matrix_no4)))  # Should return FALSE
+```
+
+
+```{r}
+#sample_name <- c(
+#  "GSD_1A_S160_L002.genes.results",
+#  "GSD_1B_S151_L002.genes.results",
+# "GSD_1C_S159_L002.genes.results",
+#  "GSD_2A_S161_L002.genes.results",
+#  "GSD_2B_S152_L002.genes.results",
+#  "GSD_2C_S158_L002.genes.results",
+#  "GSD_3A_S162_L002.genes.results",
+#  "GSD_3B_S153_L002.genes.results",
+#  "GSD_3C_S157_L002.genes.results",
+#  "GSD_4A_S163_L002.genes.results",
+#  "GSD_4B_S154_L002.genes.results",
+#  "GSD_4C_S156_L002.genes.results"
+#)
+# Define conditions
+#Condition <- c(
+#  rep("Control", 4),   # first 4 samples are control
+#  rep("DCZ_Treated", 8)    # remaining 8 samples are treated
+#)
+# Define treatment times
+#Time <- c(
+#  rep("0h", 4),  # controls
+#  rep("1h", 4),  # DCZ 1 hour
+#  rep("2h", 4)   # DCZ 2 hours
+#)
+samples <- colnames(column_matrix_no4)
+Condition <- case_when(
+  grepl("A", samples) ~ "Control",
+  grepl("B", samples) ~ "DCZ_Treated_1H",
+  grepl("C", samples) ~ "DCZ_Treated_2H"
+)
+
+Time <- ifelse(grepl("A", samples), "0h",
+         ifelse(grepl("B", samples), "1h",
+         ifelse(grepl("C", samples), "2h", NA)))
+
+# Combine into a data frame
+sudipta_sample <- data.frame(
+  Sample_name = samples,
+  Condition = Condition,
+  Time = Time
+)
+# Set sample_name as rownames (required by DESeq2)
+#sudipta_sample$sample_name <- NULL
+sudipta_sample
+# Save to CSV
+write.csv(sudipta_sample, "D:/sudipta_bulk_analysis/new_analysis/sudipta_sample.csv", row.names = TRUE)
+```
+
+
+```{r}
+
+column_matrix_no4 <- round(as.matrix(column_matrix_no4))
+storage.mode(column_matrix_no4) <- "integer"
+sudipta_sample_info <- read.csv("D:/sudipta_bulk_analysis/new_analysis/sudipta_sample.csv", header = TRUE)
+head(sudipta_sample_info)
+``` 
+
+```{r}
+sudipta_sample_info$Condition <- factor(sudipta_sample_info$Condition)
+sudipta_sample_info$Time <- factor((sudipta_sample_info$Time))
+
+```
+
+#creating seseq object
+```{r}
+sudipta_sample_info$Condition <- factor(sudipta_sample_info$Condition)
+dds <- DESeqDataSetFromMatrix(countData = column_matrix_no4, 
+                               colData = sudipta_sample_info, design = ~ Condition)
+
+
+```
+
+```{r}
+dds$Condition <- factor(dds$Condition, levels = c("Control","DCZ_Treated_1H", "DCZ_Treated_2H"))
+```
+
+## filter low quality gene
+```{r}
+keep <- rowSums(counts(dds)) >= 10
+dds <-  dds[keep,]
+```
+#identify differentially expressed gene
+
+```{r}
+dds <- DESeq(dds)
+#deseq result
+deseq_results <- results(dds)
+deseq_results
+```
+
+```{r}
+deseq_results <- as.data.frame(deseq_results)
+class(deseq_results)
+deseq_results
+```
+#order the deseq_result on p-value
+```{r}
+deseq_results_ordered <- deseq_results[order(deseq_results$pvalue),]
+deseq_results_ordered
+```
+## select gene with most differentially expressed
+## filtered based on the p- adjusted value
+
+```{r}
+filtered_padj <- deseq_results %>% filter(deseq_results$padj < 0.05)
+filtered_padj
+```
+
+#filter based on log2fc
+```{r}
+filtered_padj <- filtered_padj %>% filter(abs(filtered_padj$log2FoldChange) > 0.5)
+filtered_padj
+```
+
+```{r}
+dim(deseq_results)
+dim(filtered_padj)
+```
+
+
+```{r}
+write.csv(deseq_results, "D:/sudipta_bulk_analysis/new_analysis/new_sudipta_soumita/deseq_results_sudipta.csv", row.names = TRUE)
+write.csv(filtered_padj, "D:/sudipta_bulk_analysis/new_analysis/new_sudipta_soumita/filtered_padj_1.csv", row.names = TRUE)
+```
+
+## normalized counts
+```{r}
+normalized_counts <- counts(dds, normalized = TRUE)
+write.csv(normalized_counts, "D:/sudipta_bulk_analysis/new_analysis/new_sudipta_soumita/normalized_counts.csv", row.names = TRUE)
+normalized_counts
+```
+
+### dispersion plot
+```{r}
+plotDispEsts(dds)
+```
+### pca plot(diamentionality reduction technique)
+### variance stablizing transformation 
+```{r}
+vsd <- vst(dds,blind = FALSE)
+```
+
+```{r}
+#plotPCA(vsd, intgroup=c("Control","DCZ_Treated_1H", "DCZ_Treated_2H"))
+```
+
+
+```{r}
+# Make sure Condition is a factor with desired order
+colData(vsd)$Condition <- factor(colData(vsd)$Condition,
+                                 levels = c("Control","DCZ_Treated_1H","DCZ_Treated_2H"))
+
+# Correct plotPCA call
+plotPCA(vsd, intgroup = "Condition")
+
+```
+
+
+```{r}
+# Ensure rownames match columns of counts
+rownames(sudipta_sample_info) <- sudipta_sample_info$Sample_name
+
+# Rebuild dds if needed
+dds <- DESeqDataSetFromMatrix(countData = column_matrix_no4,
+                              colData   = sudipta_sample_info,
+                              design    = ~ Condition)
+
+vsd <- vst(dds)  # or rlog(dds)
+
+```
+
+
+```{r}
+library(ggplot2)
+
+p <- plotPCA(vsd, intgroup = "Condition")  # color by Condition
+p + geom_text(aes(label = Sample_name), vjust = -0.5, size = 6)
+
+```
+
+
+```{r}
+library(DESeq2)
+barplot(colSums(counts(dds)),
+        names.arg = colnames(dds),
+        las = 2, cex.names = 0.6,
+        main = "Library sizes per sample")
+
+```
+
+## heat map of sample to sample distance matrix 
+## genaetrate the distance matrix
+```{r}
+sampleDists <- dist(t(assay(vsd)))
+sampleDiatMatrix <- as.matrix(sampleDists)
+colnames(sampleDiatMatrix)
+```
+
+#SET a colour scheme
+```{r}
+library(RColorBrewer)   # for brewer.pal()
+library(pheatmap)
+colors <- colorRampPalette(rev(brewer.pal(100,"Blues")))(225)
+```
+
+## generat the heat map
+```{r}
+pheatmap(sampleDiatMatrix, clustering_distance_rows = sampleDists,
+         clustering_distance_col = sampleDists, col = colors, scale = "row")
+```
+```{r}
+png("D:/sudipta_bulk_analysis/new_analysis/new_sudipta_soumita/sample_heatmap.png",
+    width = 2000, height = 2000, res = 300)
+
+pheatmap(sampleDiatMatrix,
+         clustering_distance_rows = sampleDists,
+         clustering_distance_cols = sampleDists,
+         col = colors,
+         scale = "row")
+
+dev.off()
+```
+
+
+
+## heatmap of log tarnsformed normalizes
+```{r}
+top_hits <- deseq_results[order(deseq_results$padj), ][1:150,]
+top_hits <- row.names(top_hits)
+top_hits
+```
+
+
+```{r}
+rld <- rlog(dds, blind = FALSE)
+
+
+pheatmap(assay(rld)[top_hits,], cluster_row=T,show_rownames=TRUE,cluster_cols=T, cluster_rows=T, scale = "row")
+#pheatmap(assay(rld)[top_hits,])
+```
+
+
+```{r}
+
+annot_info <- as.data.frame(colData(dds)[,c('Condition','Time')])
+pheatmap(assay(rld)[top_hits,],cluster_rows=TRUE,show_rownames=TRUE,cluster_cols=TRUE,
+         annotation_col=annot_info, scale = "row")
+         
+
+```
+
+```{r}
+mat <- assay(rld)[top_hits, ]
+colnames(mat) <- gsub("_S.*", "", colnames(mat))
+colnames(mat)
+```
+
+
+```{r}
+mat_scaled <- t(scale(t(mat)))
+
+# clip extremes
+mat_scaled[mat_scaled >  3] <-  3
+mat_scaled[mat_scaled < -3] <- -3
+```
+
+```{r}
+desired_order <- c(
+  "GSD_3A","GSD_2A","GSD_1A",
+  "GSD_3B","GSD_2B","GSD_1B",
+  "GSD_3C","GSD_2C","GSD_1C"
+)
+setdiff(desired_order, colnames(mat_scaled))
+```
+
+```{r}
+mat_scaled <- mat_scaled[, desired_order]
+```
+
+```{r}
+pheatmap(mat_scaled,
+         cluster_rows = TRUE,
+         cluster_cols = FALSE,   # 🔥 keeps your order
+         show_rownames = TRUE,
+         scale = "none")
+```
+
+
+```{r}
+pheatmap(mat_scaled,
+         cluster_rows = TRUE,
+         cluster_cols = FALSE,
+         gaps_col = c(3,6),   # separates A | B | C
+         show_rownames = TRUE,
+         scale = "none")
+```
+```{r}
+# ── Annotation ───────────────────────────────────────────────
+annot_info <- as.data.frame(colData(dds)[, c("Condition","Time")])
+
+# IMPORTANT: match annotation order with matrix
+annot_info <- annot_info[colnames(mat_scaled), ]
+
+# ── Heatmap ──────────────────────────────────────────────────
+pheatmap(mat_scaled,
+         # clustering
+         cluster_rows = TRUE,
+         cluster_cols = FALSE,   # keep your custom order
+
+         # gaps for A | B | C grouping
+         gaps_col = c(3, 6),
+
+         # annotation
+         annotation_col = annot_info,
+
+         # labels
+         show_rownames = TRUE,
+         show_colnames = TRUE,
+
+         # scaling (already scaled)
+         scale = "none")
+```
+
+
+```{r}
+png(filename = "D:/sudipta_bulk_analysis/new_analysis/new_sudipta_soumita/heat_map_1.png",res = 400,units = "in",height = 15,width = 10)
+pheatmap(mat_scaled,
+         # clustering
+         cluster_rows = TRUE,
+         cluster_cols = FALSE,   # keep your custom order
+
+         # gaps for A | B | C grouping
+         gaps_col = c(3, 6),
+
+         # annotation
+         annotation_col = annot_info,
+
+         # labels
+         show_rownames = TRUE,
+         show_colnames = TRUE,
+
+         # scaling (already scaled)
+         scale = "none")
+dev.off()
+```
+
+
+```{r}
+```
+
+
+```{r}
+# reorder matrix
+mat_scaled <- mat_scaled[, desired_order]
+
+# reorder annotation
+annot_info <- annot_info[desired_order, ]
+
+# reorder labels
+col_labels <- col_labels[match(desired_order, colnames(mat_scaled))]
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+# heatmap of the z-score
+```{r}
+cal_z_score <- function(x) { (x - mean(x)) / sd(x) }
+
+Zscore_all <- t(apply(normalized_counts, 1, cal_z_score))
+
+zscore_subset <- Zscore_all[top_hits, ]
+
+pheatmap(zscore_subset)
+```
+
+##ma plot 
+```{r}
+plotMA(dds, ylim = c(-2, 2))
+
+dds <- DESeq(dds)
+res <- results(dds, alpha = 0.05)  # FDR threshold = 0.05
+plotMA(res, ylim = c(-2, 2))
+
+```
+
+
+```{r}
+#reset par
+par(mfrow=c(1,1))
+# Make a basic volcano plot(padj)
+with(filtered_padj, plot(log2FoldChange, -log10(pvalue), pch=20, main="Volcano plot", xlim=c(-3,3)))
+
+# Add colored points: blue if padj<0.01, red if log2FC>1 and padj<0.05)
+with(subset(filtered_padj, padj<.01 ), points(log2FoldChange, -log10(pvalue), pch=20, col="blue"))
+with(subset(filtered_padj, padj<.01 & abs(log2FoldChange)>2), points(log2FoldChange, -log10(pvalue), pch=20, col="red"))
+```
+
+
+```{r}
+#reset par
+#par(mfrow=c(1,1))
+#with(normalized_counts, plot(log2FoldChange, -log10(pvalue), pch=20, main="Volcano plot", xlim=c(-3,3)))
+
+# Add colored points: blue if padj<0.01, red if log2FC>1 and padj<0.05)
+#with(subset(normalized_counts, padj<.01 ), points(log2FoldChange, -log10(pvalue), pch=20, col="blue"))
+#with(subset(normalized_counts, padj<.01 & abs(log2FoldChange)>2), points(log2FoldChange, -log10(pvalue), pch=20, col="red"))
+```
+
+
+```{r}
+# Run DESeq if not already done
+dds <- DESeq(dds)
+
+# Get results with adjusted p-values
+res <- results(dds, alpha = 0.01)
+
+# Order by padj (optional, for clarity
+res_ordered <- res[order(res$padj), ]
+res_ordered
+# Basic volcano plot
+with(res_ordered,
+     plot(log2FoldChange, -log10(pvalue),
+          pch = 20,
+          main = "Volcano Plot",
+          xlim = c(-10, 15),
+          xlab = "log2 Fold Change",
+          ylab = "-log10(p-value)",
+          col = "gray50"))
+
+# Highlight significant genes
+with(subset(res_ordered, padj < 0.01 & abs(log2FoldChange) > 1),
+     points(log2FoldChange, -log10(pvalue), pch = 20, col = "red"))
+
+# Add gene names for top hits
+topgenes <- subset(res_ordered, padj < 0.01 & abs(log2FoldChange) > 1)
+topgenes <- topgenes[order(topgenes$padj), ][1:50, ]
+
+text(topgenes$log2FoldChange, -log10(topgenes$pvalue),
+     labels = rownames(topgenes), cex = 0.7, pos = 3, col = "black")
+
+```
+
+### remove noiice
+```{r}
+resultsNames(dds)
+```
+
+
+```{r}
+library(apeglm)
+```
+
+## 1-hour DCZ-treated vs Control
+```{r}
+reslfc_1h <- lfcShrink(
+  dds,
+  coef = "Condition_DCZ_Treated_1H_vs_Control",
+  type = "apeglm"
+)
+
+plotMA(reslfc_1h, ylim=c(-2,2), main="DCZ 1h vs Control")
+```
+```{r}
+library(DESeq2)
+library(ggplot2)
+library(ggrepel)  
+```
+
+```{r}
+# Convert to data frame and clean
+resdf_1 <- as.data.frame(reslfc_1h)
+resdf_1 <- na.omit(resdf_1
+                   )
+write.csv(resdf_1, "D:/sudipta_bulk_analysis/new_analysis/resdf_1_1h_vs_C.csv", row.names = TRUE)
+# Add significance column
+resdf_1$significance <- "Not Sig"
+resdf_1$significance[resdf_1$padj < 0.05 & abs(resdf_1$log2FoldChange) > 1] <- "Significant"
+
+# Select top genes for labeling
+top_genes <- rownames(resdf_1[resdf_1$padj < 0.01 & abs(resdf_1$log2FoldChange) > 2, ])
+
+# Volcano plot
+ggplot(resdf_1, aes(x = log2FoldChange, y = -log10(padj))) +
+  geom_point(aes(color = significance), alpha = 0.7, size = 2) +
+  scale_color_manual(values = c("grey", "red")) +
+  geom_vline(xintercept = c(-1, 1), linetype = "dashed", color = "blue") +
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed", color = "blue") +
+  geom_text_repel(aes(label = ifelse(rownames(resdf_1) %in% top_genes, rownames(resdf_1), "")),
+                  size = 3, max.overlaps = 10) +
+  labs(title = "Volcano Plot: Control vs DCZ Treated (1h)",
+       x = "log2 Fold Change",
+       y = "-log10(adjusted p-value)",
+       color = "Significance") +
+  theme_minimal(base_size = 14) +
+  theme(legend.position = "top")
+
+```
+
+
+## 2-hour DCZ-treated vs Control
+```{r}
+reslfc_2h <- lfcShrink(
+  dds,
+  coef = "Condition_DCZ_Treated_2H_vs_Control",
+  type = "apeglm"
+)
+plotMA(reslfc_2h, ylim=c(-2,2), main="DCZ 2h vs Control")
+```
+
+
+```{r}
+# Convert to data frame and clean
+resdf_2 <- as.data.frame(reslfc_2h)
+resdf_2 <- na.omit(resdf_2)
+write.csv(resdf_2, "D:/sudipta_bulk_analysis/new_analysis/resdf_2_2h_vs_C.csv", row.names = TRUE)
+
+view(resdf_2)
+resdf_2$hehe <- rownames(resdf_2)
+resdf_2 <- separate(resdf_2,col = "hehe",into = c("ensemble_id","gene_name"),sep = "_")
+
+# Add significance column
+resdf_2$significance <- "Not Sig"
+resdf_2$significance[resdf_2$padj < 0.05 & abs(resdf_2$log2FoldChange) > 1] <- "Significant"
+
+# Select top genes for labeling
+top_genes <- rownames(resdf_2[resdf_2$padj < 0.01 & abs(resdf_2$log2FoldChange) > 2, ])
+
+# Volcano plot for 2h
+ggplot(resdf_2, aes(x = log2FoldChange, y = -log10(padj))) +
+  geom_point(aes(color = significance), alpha = 0.7, size = 2) +
+  scale_color_manual(values = c("grey", "red")) +
+  geom_vline(xintercept = c(-1, 1), linetype = "dashed", color = "blue") +
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed", color = "blue") +
+  geom_text_repel(aes(label = ifelse(rownames(resdf_2) %in% top_genes, rownames(resdf_2), "")),
+                  size = 3, max.overlaps = 10) +
+  labs(title = "Volcano Plot: Control vs DCZ Treated (2h)",
+       x = "log2 Fold Change",
+       y = "-log10(adjusted p-value)",
+       color = "Significance") +
+  theme_minimal(base_size = 14) +
+  theme(legend.position = "top")
+
+
+```
+
+
+```{r}
+library(EnhancedVolcano)
+
+png(filename = "D:/sudipta_bulk_analysis/new_analysis/Contro vs DCZ 2h.png",res = 400,units = "in",height = 10,width = 15)
+# 1️⃣  DCZ 1h vs Control
+EnhancedVolcano(resdf_2,
+    lab = resdf_2$gene_name,
+    x = 'log2FoldChange',
+    y = 'pvalue',
+    title = 'Control vs DCZ Treated (2h)',
+    subtitle = 'Bulk RNA-seq Differential Expression',
+    caption = 'Threshold: log2FC > 0.5 | p < 0.05',
+    pCutoff = 0.05,
+    FCcutoff = 0.5,
+    pointSize = 2.0,
+    labSize = 3.0,
+    col = c('grey30', 'royalblue', 'forestgreen', 'red2'),
+    colAlpha = 0.8,
+    legendPosition = 'top',
+    drawConnectors = TRUE,
+    widthConnectors = 0.3,
+    gridlines.major = FALSE,
+    gridlines.minor = FALSE,
+    border = 'full'
+)
+dev.off()
+
+```
+```{r}
+resdf_1$hehe <- rownames(resdf_1)
+resdf_1 <- separate(resdf_1,col = "hehe",into = c("ensemble_id","gene_name"),sep = "_")
+view(res_df_1)
+```
+
+```{r}
+png(filename = "D:/sudipta_bulk_analysis/new_analysis/Contro vs DCZ 1h.png",res = 400,units = "in",height = 10,width = 15)
+# 1️⃣  DCZ 1h vs Control
+EnhancedVolcano(resdf_1,
+    lab = resdf_1$gene_name,
+    x = 'log2FoldChange',
+    y = 'pvalue',
+    title = 'Control vs DCZ Treated (1h)',
+    subtitle = 'Bulk RNA-seq Differential Expression',
+    caption = 'Threshold: log2FC > 1 | p < 0.05',
+    pCutoff = 0.05,
+    FCcutoff = 0.5,
+    pointSize = 2.0,
+    labSize = 3.0,
+    col = c('grey30', 'royalblue', 'forestgreen', 'red2'),
+    colAlpha = 0.8,
+    legendPosition = 'top',
+    drawConnectors = TRUE,
+    widthConnectors = 0.3,
+    gridlines.major = FALSE,
+    gridlines.minor = FALSE,
+    border = 'full'
+)
+dev.off()
+```
+```{r}
+
+```
+
+
+```{r}
+BiocManager::install("clusterProfiler")
+BiocManager::install("pathview")
+BiocManager::install("enrichplot")
+library(clusterProfiler)
+library(enrichplot)
+
+
+organism = "org.Mm.eg.db"
+BiocManager::install(organism, character.only = TRUE)
+library(organism, character.only = TRUE)
+
+keytypes(org.Mm.eg.db)
+```
+
+
+```{r}
+resdf_2_sig <- resdf_2[resdf_2$padj < 0.05 & resdf_2$log2FoldChange > 1 | resdf_2$log2FoldChange < -1,]
+```
+
+
+```{r}
+#stat_genes <- resdf_2_sig$log2FoldChange
+#names(stat_genes) <- resdf_2_sig$gene_name
+#stat_genes <- sort(stat_genes,decreasing = T)
+#stat_genes_clean <- stat_genes[!duplicated(names(stat_genes))]
+
+```
+
+
+```{r}
+install.packages("enrichR")
+library("enrichR")
+
+
+```
+## pathway analysis betn control and dcz_2h
+
+```{r}
+
+resdf_2$Gene_symbol <- substr(resdf_2$Gene_symbol, 1, 18)
+```
+
+
+```{r}
+view(resdf_2)
+
+resdf_2$hehe <- rownames(resdf_2)
+resdf_2 <- separate(resdf_2,col = "hehe",into = c("Gene_Id","Gene_symbol"),sep = "_")
+```
+
+
+
+# between control vs DCZ_2h #upregulated #downregulated
+```{r}
+up.idx <- which(resdf_2$padj < 0.05 & resdf_2$log2FoldChange > 0.5) # FDR < 0.05 and logFC > 0
+dn.idx <- which(resdf_2$padj < 0.05 & resdf_2$log2FoldChange < -0.5) # FDR < 0.05 and logFC < 0
+
+```
+
+
+```{r}
+dim(resdf_2)
+length(up.idx)
+length(dn.idx)
+```
+
+
+```{r}
+up.genes <- resdf_2[up.idx,]$Gene_symbol
+dn.genes <- resdf_2[dn.idx,]$Gene_symbol
+```
+
+
+```{r}
+head(up.genes, 100)
+```
+
+
+```{r}
+head(dn.genes, 100)
+```
+```{r}
+dbs <- listEnrichrDbs()
+dbs <- dbs[order(dbs$libraryName),]
+
+class(dbs)
+```
+```{r}
+dim(dbs)
+head(dbs)
+dbs$libraryName
+dbs
+```
+
+## Select databases
+```{r}
+dbs_go <- c("GO_Molecular_Function_2018", "GO_Cellular_Component_2018", "GO_Biological_Process_2018")
+dbs_pw <- c("KEGG_2019_Mouse", "WikiPathways_2019_Mouse", "BioPlanet_2019")
+
+```
+
+```{r}
+library(clusterProfiler)
+library(org.Mm.eg.db)
+
+keytypes(org.Mm.eg.db)
+
+```
+
+### Perform enrichment analysis
+## GO analysis
+```{r}
+## upregulatiing
+upEnriched_go <- enrichr(genes = up.genes, databases = dbs_go)
+```
+
+
+```{r}
+## downregulating
+dnEnriched_go <- enrichr(genes = dn.genes, databases = dbs_go)
+```
+
+
+```{r}
+upEnriched_pw <- enrichr(genes = up.genes, databases = dbs_pw)
+```
+
+
+```{r}
+dnEnriched_pw <- enrichr(genes = dn.genes, databases = dbs_pw)
+```
+
+
+```{r}
+png(filename = "D:/sudipta_bulk_analysis/new_analysis/bioplanet_up_pathways(.png",res = 400,units = "in",width = 8,height = 10)
+plotEnrich(upEnriched_pw[[3]], showTerms = 25, numChar = 80, y = "Count", orderBy = "P.value")
+dev.off()
+```
+```{r}
+png(filename = "D:/sudipta_bulk_analysis/new_analysis/kegg_dn_pathways.png",res = 400,units = "in",width = 8,height = 8)
+plotEnrich(dnEnriched_pw[[1]], showTerms = 25, numChar = 80, y = "Count", orderBy = "P.value")
+dev.off()
+```
+```{r}
+png(filename = "D:/sudipta_bulk_analysis/new_analysis/KEGG_pathways_upregulated_2h.png",
+    res = 400, units = "in", width = 8, height = 10)
+
+plotEnrich(upEnriched_pw[[1]],
+           showTerms = 25,
+           numChar = 80,
+           y = "Count",
+           orderBy = "P.value") +
+  ggtitle("Control vs DCZ_treated_2H_Upregulated") +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    axis.text.y = element_text(size = 10),
+    axis.text.x = element_text(size = 10)
+  )
+
+dev.off()
+
+```
+downregulated
+```{r}
+png(filename = "D:/sudipta_bulk_analysis/new_analysis/WikiPathways_pathways_upregulated_2h.png",
+    res = 400, units = "in", width = 8, height = 10)
+
+plotEnrich(dnEnriched_pw[[2]],
+           showTerms = 25,
+           numChar = 80,
+           y = "Count",
+           orderBy = "P.value") +
+  ggtitle("Control vs DCZ_treated_2H_Upregulated") +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    axis.text.y = element_text(size = 10),
+    axis.text.x = element_text(size = 10)
+  )
+
+dev.off()
+```
+
+
+```{r}
+#write.csv(upEnriched_pw[[1]], file = "D:/sudipta_bulk_analysis/new_analysis/KEGG_pathways_up_2h.csv", row.names = FALSE)
+```
+```{r}
+# Write each enrichment table to a separate CSV file
+write.csv(upEnriched_pw[[1]], 
+          file = "D:/sudipta_bulk_analysis/new_analysis/KEGG_pathway_upregulated_2h.csv",
+          row.names = FALSE)
+
+write.csv(upEnriched_pw[[2]], 
+          file = "D:/sudipta_bulk_analysis/new_analysis/WikiPathways_pathways_upregulated_2h.csv",
+          row.names = FALSE)
+
+write.csv(upEnriched_pw[[3]], 
+          file = "D:/sudipta_bulk_analysis/new_analysis/BioPlanet_up_pathway_upregulated_2h.csv",
+          row.names = FALSE)
+```
+
+## pathway analysis betn control and dcz_1h 
+```{r}
+view(resdf_1)
+
+resdf_1$hehe <- rownames(resdf_1)
+resdf_1 <- separate(resdf_1,col = "hehe",into = c("Gene_Id","Gene_symbol"),sep = "_")
+
+resdf_1$Gene_symbol <- substr(resdf_1$Gene_symbol, 1, 18)
+
+```
+
+
+
+#upregulated #downregulated
+```{r}
+up.idx <- which(resdf_1$padj < 0.05 & resdf_1$log2FoldChange > 0.5) # FDR < 0.05 and logFC > 0
+dn.idx <- which(resdf_1$padj < 0.05 & resdf_1$log2FoldChange < -0.5) # FDR < 0.05 and logFC < 0
+
+```
+
+
+```{r}
+dim(resdf_1)
+length(up.idx)
+length(dn.idx)
+```
+
+
+```{r}
+up.genes <- resdf_1[up.idx,]$Gene_symbol
+dn.genes <- resdf_1[dn.idx,]$Gene_symbol
+```
+
+
+```{r}
+## upregulatiing
+upEnriched_go <- enrichr(genes = up.genes, databases = dbs_go)
+## downregulatiing
+dnEnriched_go <- enrichr(genes = dn.genes, databases = dbs_go)
+```
+
+
+```{r}
+#upregulating
+upEnriched_pw <- enrichr(genes = up.genes, databases = dbs_pw)
+#doenregulating
+dnEnriched_pw <- enrichr(genes = dn.genes, databases = dbs_pw)
+```
+
+
+```{r}
+png(filename = "D:/sudipta_bulk_analysis/new_analysis/BioPlanet_up_pathway_upregulated_1h.png",
+    res = 400, units = "in", width = 8, height = 10)
+
+plotEnrich(upEnriched_pw[[3]],
+           showTerms = 25,
+           numChar = 80,
+           y = "Count",
+           orderBy = "P.value") +
+  ggtitle("Control vs DCZ_treated_1H_Upregulated") +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    axis.text.y = element_text(size = 10),
+    axis.text.x = element_text(size = 10)
+  )
+
+dev.off()
+write.csv(upEnriched_pw[[3]], 
+          file = "D:/sudipta_bulk_analysis/new_analysis/BioPlanet_up_pathway_upregulated_1h.csv",
+          row.names = FALSE)
+```
+
+
+```{r}
+
 ```
 
 
@@ -33,4 +975,214 @@ date: "2025-12-03"
 
 ```{r}
 ```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+library(fgsea)
+#imporing all gmt pathway files using fgsea package downloaded from Molecular signature database
+cannonical_pathways <- gmtPathways("D:/sudipta_bulk_analysis/gmt files/cannonical.Mm.symbols.gmt")
+
+hallmark_gene_sets <- gmtPathways("D:/sudipta_bulk_analysis/gmt files/hallmark.symbols.gmt")
+
+ontology_gene_sets <- gmtPathways("D:/sudipta_bulk_analysis/gmt files/gene ontology..Mm.symbols.gmt")
+```
+
+### ontology_gene_set
+```{r}
+sig_genes <- resdf_KO %>% 
+    filter(padj < 0.05) %>% 
+    filter(log2FoldChange > 0.25 | log2FoldChange < -0.25)
+
+sig_genes <- sig_genes %>% dplyr::arrange(desc(log2FoldChange))
+
+stat_genes <- sig_genes$log2FoldChange
+names(stat_genes) <- sig_genes$Gene_symbol
+
+stat_genes <- stat_genes[!duplicated(names(stat_genes))]
+
+```
+
+
+
+```{r}
+ontology_gene_set_pathway <- fgsea(
+                              pathways = ontology_gene_sets,
+                              stats = stat_genes,
+                              minSize = 3,
+                              maxSize = 800,
+                              nproc = 1)
+
+
+convert_list_columns <- function(df) {
+ for (col in names(df)) {
+    if (is.list(df[[col]])) {
+      df[[col]] <- sapply(df[[col]], toString)
+    }
+  }
+  return(df)
+}
+ontology_gene_set_pathway <- convert_list_columns(ontology_gene_set_pathway)
+write.csv(ontology_gene_set_pathway,"D:/sudipta_bulk_analysis/new_analysis/fgsea_ontology_gene_set_pathway_2H.csv")
+```
+
+
+### cannonical_pathways
+```{r}
+cannonical_gene_set_pathway <- fgsea(
+                              pathways = cannonical_pathways,
+                              stats = stat_genes,
+                              minSize = 3,
+                              maxSize = 800,
+                              nproc = 1)
+
+
+convert_list_columns <- function(df) {
+ for (col in names(df)) {
+    if (is.list(df[[col]])) {
+      df[[col]] <- sapply(df[[col]], toString)
+    }
+  }
+  return(df)
+}
+cannonical_gene_set_pathway <- convert_list_columns(cannonical_gene_set_pathway)
+write.csv(cannonical_gene_set_pathway,"D:/sudipta_bulk_analysis/new_analysis/fgsea_cannonical_gene_set_pathway_2H.csv")
+```
+
+##hallmark_gene_sets
+```{r}
+hallmark_gene_sets_pathway <- fgsea(
+                              pathways = hallmark_gene_sets,
+                              stats = stat_genes,
+                              minSize = 3,
+                              maxSize = 800,
+                              nproc = 1)
+
+
+convert_list_columns <- function(df) {
+ for (col in names(df)) {
+    if (is.list(df[[col]])) {
+      df[[col]] <- sapply(df[[col]], toString)
+    }
+  }
+  return(df)
+}
+hallmark_gene_sets_pathway <- convert_list_columns(hallmark_gene_sets_pathway)
+write.csv(hallmark_gene_sets_pathway,"D:/sudipta_bulk_analysis/new_analysis/fgsea_hallmark_gene_sets_pathway_2H.csv")
+```
+
+
+
+
+for control vs 1 hrs
+```{r}
+sig_genes <- resdf_1 %>% 
+    filter(padj < 0.05) %>% 
+    filter(log2FoldChange > 0.5 | log2FoldChange < -0.5)
+
+sig_genes <- sig_genes %>% dplyr::arrange(desc(log2FoldChange))
+
+stat_genes <- sig_genes$log2FoldChange
+names(stat_genes) <- sig_genes$Gene_symbol
+
+stat_genes <- stat_genes[!duplicated(names(stat_genes))]
+```
+
+#ontology_pathway
+```{r}
+ontology_gene_set_pathway <- fgsea(
+                              pathways = ontology_gene_sets,
+                              stats = stat_genes,
+                              minSize = 3,
+                              maxSize = 800,
+                              nproc = 1)
+
+
+convert_list_columns <- function(df) {
+ for (col in names(df)) {
+    if (is.list(df[[col]])) {
+      df[[col]] <- sapply(df[[col]], toString)
+    }
+  }
+  return(df)
+}
+ontology_gene_set_pathway <- convert_list_columns(ontology_gene_set_pathway)
+write.csv(ontology_gene_set_pathway,"D:/sudipta_bulk_analysis/new_analysis/fgsea_ontology_gene_set_pathway_1H.csv")
+```
+## pathway cannonical
+
+```{r}
+cannonical_gene_set_pathway <- fgsea(
+                              pathways = cannonical_pathways,
+                              stats = stat_genes,
+                              minSize = 3,
+                              maxSize = 800,
+                              nproc = 1)
+
+
+convert_list_columns <- function(df) {
+ for (col in names(df)) {
+    if (is.list(df[[col]])) {
+      df[[col]] <- sapply(df[[col]], toString)
+    }
+  }
+  return(df)
+}
+cannonical_gene_set_pathway <- convert_list_columns(cannonical_gene_set_pathway)
+write.csv(cannonical_gene_set_pathway,"D:/sudipta_bulk_analysis/new_analysis/fgsea_cannonical_gene_set_pathway_1H.csv")
+```
+## hallmark_gene_sets_pathway
+
+```{r}
+hallmark_gene_sets_pathway <- fgsea(
+                              pathways = hallmark_gene_sets,
+                              stats = stat_genes,
+                              minSize = 3,
+                              maxSize = 800,
+                              nproc = 1)
+
+
+convert_list_columns <- function(df) {
+ for (col in names(df)) {
+    if (is.list(df[[col]])) {
+      df[[col]] <- sapply(df[[col]], toString)
+    }
+  }
+  return(df)
+}
+hallmark_gene_sets_pathway <- convert_list_columns(hallmark_gene_sets_pathway)
+write.csv(hallmark_gene_sets_pathway,"D:/sudipta_bulk_analysis/new_analysis/fgsea_hallmark_gene_sets_pathway_1H.csv")
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
 
