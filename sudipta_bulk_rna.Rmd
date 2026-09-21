@@ -331,7 +331,7 @@ mat_scaled <- mat_scaled[, desired_order]
 ```{r}
 pheatmap(mat_scaled,
          cluster_rows = TRUE,
-         cluster_cols = FALSE,   # 🔥 keeps your order
+         cluster_cols = FALSE,   #keeps your order
          show_rownames = TRUE,
          scale = "none")
 ```
@@ -346,13 +346,13 @@ pheatmap(mat_scaled,
          scale = "none")
 ```
 ```{r}
-# ── Annotation ───────────────────────────────────────────────
+# ── Annotation
 annot_info <- as.data.frame(colData(dds)[, c("Condition","Time")])
 
 # IMPORTANT: match annotation order with matrix
 annot_info <- annot_info[colnames(mat_scaled), ]
 
-# ── Heatmap ──────────────────────────────────────────────────
+# ── Heatmap 
 pheatmap(mat_scaled,
          # clustering
          cluster_rows = TRUE,
