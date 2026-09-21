@@ -1,0 +1,5103 @@
+---
+title: "ashish_difined_rna_seq analysis"
+output: html_notebook
+---
+### sample wise analysis
+
+```{r}
+library(limma)
+library(edgeR)
+library(tidyverse)
+library(DESeq2)
+library(DESeq2)
+library(ggplot2)
+library(ggrepel)
+library(pheatmap)
+library(RColorBrewer)
+library(dplyr)
+library(patchwork)
+library(scales)
+library(grid)
+library(gridExtra)
+```
+
+### loading the .tsv file
+```{r}
+count_matrix_veh<- read.delim("D:/ASHISH/salmon.merged.gene_counts.tsv")
+```
+
+## lamVEH vs conVEH
+```{r}
+count_matrix_filtered <- count_matrix_veh[, c(
+  "gene_name",
+  "ConVEH1", "ConVEH2", "ConVEH3", "ConVEH4",
+  "LAMVEH1", "LAMVEH2", "LAMVEH3", "LAMVEH4"
+)]
+head(count_matrix_filtered)
+```
+```{r}
+write.csv(count_matrix_filtered, "D:/ASHISH/lams_analysis/new_analysis/gene_count_conVEH_vs_LAMVEH.csv", row.names = FALSE)
+column_matrix_lamvehvsconveh <- read.csv("D:/ASHISH/lams_analysis/new_analysis/gene_count_conVEH_vs_LAMVEH.csv", header = TRUE)
+column_matrix_lamvehvsconveh
+```
+
+```{r}
+row.names(column_matrix_lamvehvsconveh) <- make.unique(as.character(column_matrix_lamvehvsconveh$gene_name))
+column_matrix_lamvehvsconveh
+
+# Make duplicates unique 
+column_matrix_lamvehvsconveh$gene_name <- NULL
+
+any(duplicated(rownames(column_matrix_lamvehvsconveh)))  # Should return FALSE
+
+samples <- colnames(column_matrix_lamvehvsconveh)
+CellType = c(
+    rep("Con", 4),
+    rep("LAM", 4)
+  )
+Treatment = c(
+    rep("VEH",8)
+  )
+# Combine into a data frame
+ashish_sample_lamvehvsconveh <- data.frame(
+  Sample_name = samples,
+  Treatment = Treatment,
+  CellType = CellType)
+
+ashish_sample_lamvehvsconveh
+
+# Save to CSV
+write.csv(ashish_sample_lamvehvsconveh, "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_LAMVEH/ashish_sample_lamvehvsconveh.csv", row.names = FALSE)
+
+```
+```{r}
+
+column_matrix_lamvehvsconveh <- round(as.matrix(column_matrix_lamvehvsconveh))
+storage.mode(column_matrix_lamvehvsconveh) <- "integer"
+
+rownames(ashish_sample_lamvehvsconveh) <- ashish_sample_lamvehvsconveh$Sample_name
+ashish_sample_lamvehvsconveh$Sample_name <- NULL
+```
+
+#### the sample is defined by treatment given and its cell type, which will be require for designing the expreiment so that we can compare..... here we donot use treatment to compare , as every thing has got same treatment.  only the celltype will be the major factor for comparinf between LAM_VEH VS Con_VEH
+
+```{r}
+ashish_sample_lamvehvsconveh$CellType <- factor(
+  ashish_sample_lamvehvsconveh$CellType,
+  levels = c("Con","LAM")
+)
+
+ashish_sample_lamvehvsconveh$Treatment <- factor(
+  ashish_sample_lamvehvsconveh$Treatment,
+  levels = c("VEH","NAG")
+)
+
+```
+
+### creating Deseq object
+```{r}
+#ashish_sample_lamvehvsconveh$CellType <- factor(ashish_sample_lamvehvsconveh$CellType)
+dds_lamvehvsconveh <- DESeqDataSetFromMatrix(
+  countData = column_matrix_lamvehvsconveh,
+  colData = ashish_sample_lamvehvsconveh,
+  design = ~ CellType 
+)
+
+```
+
+### filter low quality gene
+```{r}
+keep <- rowSums(counts(dds_lamvehvsconveh)) >= 10
+dds_lamvehvsconveh <-  dds_lamvehvsconveh[keep,]
+```
+### deseq analysis
+### identify differentially expressed gene
+
+```{r}
+dds_lamvehvsconveh <- DESeq(dds_lamvehvsconveh)
+
+resultsNames(dds_lamvehvsconveh)
+```
+
+
+## lamNAG vs Con Nag
+```{r}
+count_matrix_filtered_1 <- count_matrix_veh[, c(
+  "gene_name",
+  "ConNAG1", "ConNAG2", "ConNAG3", "ConNAG4",
+  "LAMNAG1", "LAMNAG2", "LAMNAG3", "LAMNAG4"
+)]
+head(count_matrix_filtered_1)
+```
+
+```{r}
+write.csv(count_matrix_filtered_1, "D:/ASHISH/lams_analysis/new_analysis/gene_count_conNAG_vs_LAMNAG.csv", row.names = FALSE)
+column_matrix_lamNAGvsconNAG <- read.csv("D:/ASHISH/lams_analysis/new_analysis/gene_count_conNAG_vs_LAMNAG.csv", header = TRUE)
+column_matrix_lamNAGvsconNAG
+```
+
+```{r}
+row.names(column_matrix_lamNAGvsconNAG) <- make.unique(as.character(column_matrix_lamNAGvsconNAG$gene_name))
+column_matrix_lamNAGvsconNAG
+
+# Make duplicates unique 
+column_matrix_lamNAGvsconNAG$gene_name <- NULL
+
+any(duplicated(rownames(column_matrix_lamNAGvsconNAG)))  # Should return FALSE
+
+samples <- colnames(column_matrix_lamNAGvsconNAG)
+CellType = c(
+    rep("Con", 4),
+    rep("LAM", 4)
+  )
+Treatment = c(
+    rep("NAG",8)
+  )
+# Combine into a data frame
+ashish_sample_lamNAGvsconNAG <- data.frame(
+  Sample_name = samples,
+  Treatment = Treatment,
+  CellType = CellType)
+ashish_sample_lamNAGvsconNAG
+
+# Save to CSV
+write.csv(ashish_sample_lamNAGvsconNAG, "D:/ASHISH/lams_analysis/new_analysis/conNAG_vs_LAMNAG/ashish_sample_lamNAGvsconNAG.csv", row.names = FALSE)
+
+```
+
+```{r}
+
+column_matrix_lamNAGvsconNAG <- round(as.matrix(column_matrix_lamNAGvsconNAG))
+storage.mode(column_matrix_lamNAGvsconNAG) <- "integer"
+
+rownames(ashish_sample_lamNAGvsconNAG) <- ashish_sample_lamNAGvsconNAG$Sample_name
+ashish_sample_lamNAGvsconNAG$Sample_name <- NULL
+```
+
+#### the sample is defined by treatment given and its cell type, which will be require for designing the expreiment so that we can compare..... here we treatment   for comparinf between LAM_Nag VS Con_NAG
+
+```{r}
+ashish_sample_lamNAGvsconNAG$CellType <- factor(
+  ashish_sample_lamNAGvsconNAG$CellType,
+  levels = c("Con","LAM")
+)
+
+ashish_sample_lamNAGvsconNAG$Treatment <- factor(
+  ashish_sample_lamNAGvsconNAG$Treatment,
+  levels = c("VEH","NAG")
+)
+
+```
+
+### creating Deseq object
+```{r}
+#ashish_sample_lamNAGvsconNAG$CellType <- factor(ashish_sample_lamNAGvsconNAG$CellType)
+dds_lamNAGvsconNAG <- DESeqDataSetFromMatrix(
+  countData = column_matrix_lamNAGvsconNAG,
+  colData = ashish_sample_lamNAGvsconNAG,
+  design = ~ CellType 
+)
+
+```
+
+### filter low quality gene
+```{r}
+keep <- rowSums(counts(dds_lamNAGvsconNAG)) >= 10
+dds_lamNAGvsconNAG <-  dds_lamNAGvsconNAG[keep,]
+```
+### deseq analysis
+### identify differentially expressed gene
+
+```{r}
+dds_lamNAGvsconNAG <- DESeq(dds_lamNAGvsconNAG)
+
+resultsNames(dds_lamNAGvsconNAG)
+```
+
+
+
+## lamNAG vs lamVEH
+```{r}
+
+count_matrix_filtered_2 <- count_matrix_veh[, c(
+  "gene_name",
+  "LAMVEH1", "LAMVEH2", "LAMVEH3", "LAMVEH4",
+  "LAMNAG1", "LAMNAG2", "LAMNAG3", "LAMNAG4"
+)]
+head(count_matrix_filtered_2)
+```
+
+```{r}
+write.csv(count_matrix_filtered_2, "D:/ASHISH/lams_analysis/new_analysis/gene_count_LAMVEH_vs_LAMNAG.csv", row.names = FALSE)
+column_matrix_lamNAGvslamVEH <- read.csv("D:/ASHISH/lams_analysis/new_analysis/gene_count_LAMVEH_vs_LAMNAG.csv", header = TRUE)
+column_matrix_lamNAGvslamVEH
+```
+
+```{r}
+row.names(column_matrix_lamNAGvslamVEH) <- make.unique(as.character(column_matrix_lamNAGvslamVEH$gene_name))
+column_matrix_lamNAGvslamVEH
+
+# Make duplicates unique 
+column_matrix_lamNAGvslamVEH$gene_name <- NULL
+
+any(duplicated(rownames(column_matrix_lamNAGvslamVEH)))  # Should return FALSE
+
+samples <- colnames(column_matrix_lamNAGvslamVEH)
+CellType = c(
+  rep("LAM", 8)
+  )
+Treatment = c(
+  rep("VEH",4),
+  rep("NAG",4)
+  )
+# Combine into a data frame
+ashish_sample_lamNAGvslamVEH <- data.frame(
+  Sample_name = samples,
+  Treatment = Treatment,
+  CellType = CellType)
+ashish_sample_lamNAGvslamVEH
+
+# Save to CSV
+write.csv(ashish_sample_lamNAGvslamVEH, "D:/ASHISH/lams_analysis/new_analysis/LAMVEH_vs_LAMNAG/ashish_sample_lamNAGvslamVEH.csv", row.names = FALSE)
+
+```
+```{r}
+
+column_matrix_lamNAGvslamVEH <- round(as.matrix(column_matrix_lamNAGvslamVEH))
+storage.mode(column_matrix_lamNAGvslamVEH) <- "integer"
+
+rownames(ashish_sample_lamNAGvslamVEH) <- ashish_sample_lamNAGvslamVEH$Sample_name
+ashish_sample_lamNAGvslamVEH$Sample_name <- NULL
+```
+
+#### the sample is defined by treatment given and its cell type, which will be require for designing the expreiment so that we can compare..... here we  use treatment to compare , as every thing has got same CELLTYPE  only the celltype will be the major factor for comparinf between lamNAG vs lamVEH
+
+```{r}
+ashish_sample_lamNAGvslamVEH$CellType <- factor(
+  ashish_sample_lamNAGvslamVEH$CellType,
+  levels = c("Con","LAM")
+)
+
+ashish_sample_lamNAGvslamVEH$Treatment <- factor(
+  ashish_sample_lamNAGvslamVEH$Treatment,
+  levels = c("VEH","NAG")
+)
+
+```
+
+### creating Deseq object
+```{r}
+#ashish_sample_lamNAGvslamVEH$CellType <- factor(ashish_sample_lamNAGvslamVEH$CellType)
+dds_lamNAGvslamVEH <- DESeqDataSetFromMatrix(
+  countData = column_matrix_lamNAGvslamVEH,
+  colData = ashish_sample_lamNAGvslamVEH,
+  design = ~ Treatment 
+)
+
+```
+
+### filter low quality gene
+```{r}
+keep <- rowSums(counts(dds_lamNAGvslamVEH)) >= 10
+dds_lamNAGvslamVEH <-  dds_lamNAGvslamVEH[keep,]
+```
+### deseq analysis
+### identify differentially expressed gene
+
+```{r}
+dds_lamNAGvslamVEH <- DESeq(dds_lamNAGvslamVEH)
+
+resultsNames(dds_lamNAGvslamVEH)
+```
+
+
+## conVEH VS conNAG
+```{r}
+count_matrix_filtered_3 <- count_matrix_veh[, c(
+  "gene_name",
+  "ConVEH1", "ConVEH2", "ConVEH3", "ConVEH4",
+  "ConNAG1", "ConNAG2", "ConNAG3", "ConNAG4"
+)]
+head(count_matrix_filtered_3)
+```
+
+```{r}
+write.csv(count_matrix_filtered_3, "D:/ASHISH/lams_analysis/new_analysis/gene_count_conVEH_vs_conNAG.csv", row.names = FALSE)
+column_matrix_conVEH_vs_conNAG<- read.csv("D:/ASHISH/lams_analysis/new_analysis/gene_count_conVEH_vs_conNAG.csv", header = TRUE)
+column_matrix_conVEH_vs_conNAG
+```
+
+```{r}
+row.names(column_matrix_conVEH_vs_conNAG) <- make.unique(as.character(column_matrix_conVEH_vs_conNAG$gene_name))
+column_matrix_conVEH_vs_conNAG
+
+# Make duplicates unique 
+column_matrix_conVEH_vs_conNAG$gene_name <- NULL
+
+any(duplicated(rownames(column_matrix_conVEH_vs_conNAG)))  # Should return FALSE
+
+samples <- colnames(column_matrix_conVEH_vs_conNAG)
+CellType = c(
+  rep("Con", 8)
+  )
+Treatment = c(
+  rep("VEH",4),
+  rep("NAG",4)
+  )
+# Combine into a data frame
+ashish_sample_conVEH_vs_conNAG <- data.frame(
+  Sample_name = samples,
+  Treatment = Treatment,
+  CellType = CellType)
+ashish_sample_conVEH_vs_conNAG
+
+# Save to CSV
+write.csv(ashish_sample_conVEH_vs_conNAG, "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/ashish_sample_conVEH_vs_conNAG.csv", row.names = FALSE)
+
+```
+
+```{r}
+
+column_matrix_conVEH_vs_conNAG <- round(as.matrix(column_matrix_conVEH_vs_conNAG))
+storage.mode(column_matrix_conVEH_vs_conNAG) <- "integer"
+
+rownames(ashish_sample_conVEH_vs_conNAG) <- ashish_sample_conVEH_vs_conNAG$Sample_name
+ashish_sample_conVEH_vs_conNAG$Sample_name <- NULL
+```
+
+#### the sample is defined by treatment given and its cell type, which will be require for designing the expreiment so that we can compare..... here we  use treatment to compare , as every thing has got same CELLTYPE  only the celltype will be the major factor for comparinf between lamNAG vs lamVEH
+
+```{r}
+ashish_sample_conVEH_vs_conNAG$CellType <- factor(
+  ashish_sample_conVEH_vs_conNAG$CellType,
+  levels = c("Con","LAM")
+)
+
+ashish_sample_conVEH_vs_conNAG$Treatment <- factor(
+  ashish_sample_conVEH_vs_conNAG$Treatment,
+  levels = c("VEH","NAG")
+)
+
+```
+
+### creating Deseq object
+```{r}
+#ashish_sample_conVEH_vs_conNAG$CellType <- factor(ashish_sample_conVEH_vs_conNAG$CellType)
+dds_conVEH_vs_conNAG <- DESeqDataSetFromMatrix(
+  countData = column_matrix_conVEH_vs_conNAG,
+  colData = ashish_sample_conVEH_vs_conNAG,
+  design = ~ Treatment 
+)
+
+```
+
+### filter low quality gene
+```{r}
+keep <- rowSums(counts(dds_conVEH_vs_conNAG)) >= 10
+dds_conVEH_vs_conNAG <-  dds_conVEH_vs_conNAG[keep,]
+```
+### deseq analysis
+### identify differentially expressed gene
+
+```{r}
+dds_conVEH_vs_conNAG <- DESeq(dds_conVEH_vs_conNAG)
+
+resultsNames(dds_conVEH_vs_conNAG)
+```
+
+
+## identify differentially expressed gene
+```{r}
+# A. NAG effect in BMDM — simple coef → apeglm
+results_LAMVEH_vs_LAMNAG <- results(
+  dds_lamNAGvslamVEH,
+  name = "Treatment_NAG_vs_VEH"
+)
+ 
+# B. NAG effect in LAM — list contrast → ashr
+results_conVEH_vs_LAMVEH <- results(
+  dds_lamvehvsconveh,
+  name = "CellType_LAM_vs_Con")
+  
+ 
+# C. Baseline LAM signature — simple coef → apeglm
+results_conNAG_vs_LAMNAG <- results(
+  dds_lamNAGvsconNAG,
+  name = "CellType_LAM_vs_Con"
+)
+ 
+# D. LAM identity after NAG — list contrast → ashr
+results_conVEH_vs_conNAG <- results(
+  dds_conVEH_vs_conNAG,
+  name = "Treatment_NAG_vs_VEH")
+
+write.csv(results_LAMVEH_vs_LAMNAG, "D:/ASHISH/lams_analysis/new_analysis/LAMVEH_vs_LAMNAG/results_LAMVEH_vs_LAMNAG.csv", row.names = FALSE)
+write.csv(results_conVEH_vs_LAMVEH, "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_LAMVEH/results_conVEH_vs_LAMVEH.csv", row.names = FALSE)
+write.csv(results_conNAG_vs_LAMNAG, "D:/ASHISH/lams_analysis/new_analysis/conNAG_vs_LAMNAG/results_conNAG_vs_LAMNAG.csv", row.names = FALSE)
+write.csv(results_conVEH_vs_conNAG, "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/results_conVEH_vs_conNAG.csv", row.names = FALSE)
+```
+
+#Applying LFC shrinkage
+
+
+```{r}
+# A. NAG effect in BMDM — simple coef → apeglm
+res_LAMVEH_vs_LAMNAG <- lfcShrink(
+  dds_lamNAGvslamVEH,
+  coef = "Treatment_NAG_vs_VEH",
+  type = "apeglm"
+)
+ 
+# B. NAG effect in LAM — list contrast → ashr
+res_conVEH_vs_LAMVEH <- lfcShrink(
+  dds_lamvehvsconveh,
+  coef = "CellType_LAM_vs_Con",
+  type = "apeglm")
+  
+ 
+# C. Baseline LAM signature — simple coef → apeglm
+res_conNAG_vs_LAMNAG <- lfcShrink(
+  dds_lamNAGvsconNAG,
+  coef = "CellType_LAM_vs_Con",
+  type = "apeglm"
+)
+ 
+# D. LAM identity after NAG — list contrast → ashr
+res_conVEH_vs_conNAG <- lfcShrink(
+  dds_conVEH_vs_conNAG,
+  coef = "Treatment_NAG_vs_VEH",
+  type = "apeglm")
+
+write.csv(res_LAMVEH_vs_LAMNAG, "D:/ASHISH/lams_analysis/new_analysis/LAMVEH_vs_LAMNAG/res_LAMVEH_vs_LAMNAG.csv", row.names = FALSE)
+write.csv(res_conVEH_vs_LAMVEH, "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_LAMVEH/res_conVEH_vs_LAMVEH.csv", row.names = FALSE)
+write.csv(res_conNAG_vs_LAMNAG, "D:/ASHISH/lams_analysis/new_analysis/conNAG_vs_LAMNAG/res_conNAG_vs_LAMNAG.csv", row.names = FALSE)
+write.csv(res_conVEH_vs_conNAG, "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/res_conVEH_vs_conNAG.csv", row.names = FALSE)
+```
+```{r}
+# Sanity check
+for (nm in c("res_LAMVEH_vs_LAMNAG","res_conVEH_vs_LAMVEH","res_conNAG_vs_LAMNAG","res_conVEH_vs_conNAG")) {
+  cat("\n─── Summary:", nm, "───\n")
+  summary(get(nm))
+}
+```
+```{r}
+# Confirm your actual numbers at FDR < 0.05
+lapply(list(res_LAMVEH_vs_LAMNAG,res_conVEH_vs_LAMVEH,res_conNAG_vs_LAMNAG,res_conVEH_vs_conNAG), function(r) {
+  sum(!is.na(r$padj) & r$padj < 0.05 & abs(r$log2FoldChange) > 0.25)
+})
+```
+# Publication Style
+```{r}
+pub_theme <- theme_classic(base_size = 12) +
+  theme(
+    text                = element_text(family = "Helvetica", color = "black"),
+    plot.title          = element_text(size = 13, face = "bold", hjust = 0.5,
+                                       margin = margin(b = 8)),
+    plot.subtitle       = element_text(size = 10, hjust = 0.5, color = "grey40",
+                                       margin = margin(b = 10)),
+    axis.title          = element_text(size = 11, face = "bold"),
+    axis.text           = element_text(size = 10, color = "black"),
+    axis.line           = element_line(linewidth = 0.6, color = "black"),
+    axis.ticks          = element_line(linewidth = 0.5, color = "black"),
+    legend.title        = element_text(size = 10, face = "bold"),
+    legend.text         = element_text(size = 9),
+    legend.key.size     = unit(0.5, "cm"),
+    legend.background   = element_rect(fill = "white", color = NA),
+    panel.grid.major    = element_line(color = "grey92", linewidth = 0.4),
+    panel.grid.minor    = element_blank(),
+    plot.background     = element_rect(fill = "white", color = NA),
+    panel.background    = element_rect(fill = "white", color = NA),
+    strip.background    = element_rect(fill = "grey95", color = "black",
+                                       linewidth = 0.5),
+    strip.text          = element_text(size = 10, face = "bold"),
+    plot.margin         = margin(12, 12, 12, 12)
+  )
+ 
+theme_set(pub_theme)
+ 
+col_celltype  <- c("Con" = "#2166AC", "LAM"  = "#B2182B")
+col_treatment <- c("VEH"  = "#4D9221", "NAG"  = "#C51B7D")
+col_volcano   <- c("Up"   = "#B2182B", "Down" = "#2166AC", "NS" = "grey75")
+col_heatmap   <- colorRampPalette(rev(brewer.pal(11, "RdBu")))(100)
+ 
+# ── 4. Thresholds ─────────────────────────────────────────────────────────────
+FC_CUT  <- 0.25      # log2FC ≥0.25 
+FDR_CUT <- 0.05   # adjusted p-value
+```
+# pca for all four condition
+
+
+```{r}
+#VST Transformation
+vsd_conVEH_vs_conNAG <- vst(dds_conVEH_vs_conNAG, blind = FALSE)
+vsd_lamNAGvsconNAG <- vst(dds_lamNAGvsconNAG, blind = FALSE)
+vsd_lamNAGvslamVEH <- vst(dds_lamNAGvslamVEH, blind = FALSE)
+vsd_lamvehvsconveh <- vst(dds_lamvehvsconveh, blind = FALSE)
+```
+
+D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG
+D:/ASHISH/lams_analysis/new_analysis/conNAG_vs_LAMNAG
+D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_LAMVEH
+D:/ASHISH/lams_analysis/new_analysis/LAMVEH_vs_LAMNAG
+```{r}
+pca_data <- plotPCA(
+    vsd_conVEH_vs_conNAG,
+    intgroup = c("CellType", "Treatment"),
+    ntop = nrow(vsd_conVEH_vs_conNAG),
+    returnData = TRUE
+)
+pca_data
+ggsave(
+    "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/PCA_vsd_conVEH_vs_conNAG.png",
+    p_pca,
+    width = 8,
+    height = 6,
+    dpi = 300
+)
+```
+
+
+```{r}
+pca_data <- plotPCA(
+    vsd_conVEH_vs_conNAG,
+    intgroup = c("CellType", "Treatment"),
+    ntop = nrow(vsd_conVEH_vs_conNAG),
+    returnData = TRUE
+)
+percentVar <- round(100 * attr(pca_data, "percentVar"))
+ 
+# Combine group label for shape
+pca_data$Group <- paste0(pca_data$CellType, "_", pca_data$Treatment)
+ 
+p_pca <- ggplot(pca_data,
+                aes(x = PC1, y = PC2,
+                    color = CellType,
+                    shape = Treatment,
+                    fill  = CellType)) +
+  # Convex hull per CellType
+  #stat_ellipse(aes(group = CellType), type = "norm",
+  #             linetype = 2, linewidth = 0.5, alpha = 0.15,
+  #             geom = "polygon") +
+  geom_point(size = 5, stroke = 0.8, color = "black",
+             aes(fill = CellType), alpha = 0.95) +
+  geom_text_repel(aes(label = name),
+                  size = 3, color = "black",
+                  box.padding = 0.4,
+                  max.overlaps = 20,
+                  segment.color = "grey60",
+                  segment.size  = 0.3) +
+  scale_color_manual(values = col_celltype) +
+  scale_fill_manual(values  = col_celltype) +
+  scale_shape_manual(values = c("VEH" = 21, "NAG" = 24)) +
+  xlab(paste0("PC1  (", percentVar[1], "% variance)")) +
+  ylab(paste0("PC2  (", percentVar[2], "% variance)")) +
+  ggtitle("Principal Component Analysis") +
+  guides(
+    fill  = guide_legend(title = "Cell Type",
+                         override.aes = list(shape = 21, size = 4)),
+    shape = guide_legend(title = "Treatment",
+                         override.aes = list(size = 4))
+  ) +
+  theme(legend.position = "right")
+p_pca
+```
+
+
+```{r}
+
+col_condition <- c(
+    "ConVEH" = "#42d4f4",
+    "ConNAG" = "#e6194B",
+    "LAMVEH" = "#d95f02",
+    "LAMNAG" = "#2BC016"
+)
+pca_data <- plotPCA(
+    vsd_lamNAGvslamVEH,
+    intgroup = c("CellType", "Treatment"),
+    ntop = nrow(vsd_lamNAGvslamVEH),
+    returnData = TRUE
+)
+
+percentVar <- round(
+    100 * attr(pca_data, "percentVar")
+)
+
+pca_data$Condition <- paste0(pca_data$CellType, pca_data$Treatment)
+pca_data$Condition <- factor(
+  pca_data$Condition,
+  levels = c("LAMVEH", "LAMNAG")
+)
+
+
+p_pca <- ggplot(
+    pca_data,
+    aes(
+        x = PC1,
+        y = PC2,
+        color = Condition,
+        fill  = Condition,
+        shape = Condition
+    )
+) +
+
+    # Ellipse per group
+    stat_ellipse(
+        aes(group = Condition),
+        type = "norm",
+        geom = "polygon",
+        alpha = 0.12,
+        linewidth = 0.5
+    ) +
+
+    # PCA points
+    geom_point(
+        size = 5,
+        stroke = 0.8,
+        color = "black",
+        alpha = 0.95
+    ) +
+
+    # Sample labels
+    geom_text_repel(
+        aes(label = name),
+        size = 3,
+        color = "black",
+        box.padding = 0.4,
+        segment.color = "grey60",
+        segment.size = 0.3,
+        max.overlaps = 20
+    ) +
+
+    # Colors
+    scale_color_manual(values = col_condition) +
+    scale_fill_manual(values  = col_condition) +
+
+    # Shapes
+    scale_shape_manual(values = c(
+        "ConVEH" = 21,
+        "ConNAG" = 24,
+        "LAMVEH" = 22,
+        "LAMNAG" = 23
+    )) +
+
+    # Axis labels
+    xlab(paste0(
+        "PC1 (",
+        percentVar[1],
+        "% variance)"
+    )) +
+
+    ylab(paste0(
+        "PC2 (",
+        percentVar[2],
+        "% variance)"
+    )) +
+
+    ggtitle(
+        "Principal Component Analysis"
+    ) +
+
+    theme_bw(base_size = 14) +
+
+    theme(
+        plot.title = element_text(
+            face = "bold",
+            hjust = 0.5
+        ),
+
+        plot.subtitle = element_text(
+            hjust = 0.5
+        ),
+
+        legend.position = "right",
+
+        panel.grid.minor = element_blank()
+    )
+p_pca
+ggsave(
+    "D:/ASHISH/lams_analysis/new_analysis/LAMVEH_vs_LAMNAG/PCA_vsd_lamNAGvslamVEH.png",
+    p_pca,
+    width = 8,
+    height = 6,
+    dpi = 300
+)
+```
+
+
+```{r}
+
+#(
+#    "ConVEH" = "#42d4f4",
+#    "ConNAG" = "#e6194B",
+#    "LAMVEH" = "#d95f02",
+#    "LAMNAG" = "#2BC016"
+
+library(ComplexHeatmap)
+library(circlize)
+library(dplyr)
+
+# ── Top genes ────────────────────────────────────────────────────────────────
+top_genes_A <- as.data.frame(res_LAMVEH_vs_LAMNAG) %>%
+  filter(!is.na(padj), padj < 0.05, abs(log2FoldChange) > 0.5) %>%
+  arrange(padj) %>%
+  head(100) %>%
+  rownames()
+
+# ── Matrix ───────────────────────────────────────────────────────────────────
+mat_A <- assay(vsd_lamNAGvslamVEH)[top_genes_A, ]
+mat_A <- t(scale(t(mat_A)))  # z-score per gene
+
+# ── Annotation ───────────────────────────────────────────────────────────────
+col_ann_A <- HeatmapAnnotation(
+  Treatment = colData(vsd_lamNAGvslamVEH)$Treatment,
+  col = list(Treatment = c("LAMVEH" = "#d95f02", "LAMNAG" = "#2BC016")),
+  annotation_name_side = "left"
+)
+
+# ── Color scale ──────────────────────────────────────────────────────────────
+col_fun <- colorRamp2(c(-2, 0, 2), c("#4575b4", "white", "#d73027"))
+
+# ── Heatmap ──────────────────────────────────────────────────────────────────
+ht_A <- Heatmap(
+  mat_A,
+  name                  = "Z-score",
+  col                   = col_fun,
+  top_annotation        = col_ann_A,
+  show_row_names        = TRUE,
+  show_column_names     = TRUE,
+  cluster_rows          = TRUE,
+  cluster_columns       = FALSE,
+  row_names_gp          = gpar(fontsize = 7),
+  column_names_gp       = gpar(fontsize = 9),
+  column_title          = "LAMVEH vs LAMNAG (Top 50 DEGs)",
+  column_title_gp       = gpar(fontsize = 12, fontface = "bold"),
+  heatmap_legend_param  = list(title = "Z-score")
+)
+
+draw(ht_A)
+```
+
+
+```{r}
+library(DESeq2)
+library(ComplexHeatmap)
+library(circlize)
+library(dplyr)
+library(matrixStats)
+
+FC_CUT  <- 1
+FDR_CUT <- 0.05
+
+# ══════════════════════════════════════════════════════════════════════════════
+# COMPARISON A — LAMVEH vs LAMNAG
+# ══════════════════════════════════════════════════════════════════════════════
+cat("\n──── Comparison A: LAMVEH vs LAMNAG ────\n")
+
+# ── DEG table ─────────────────────────────────────────────────────────────────
+deg_A <- as.data.frame(res_LAMVEH_vs_LAMNAG) %>%
+  filter(!is.na(padj), padj < FDR_CUT, abs(log2FoldChange) > FC_CUT) %>%
+  arrange(padj)
+cat("Total DEGs:", nrow(deg_A),
+    "| Up:", sum(deg_A$log2FoldChange > 0),
+    "| Down:", sum(deg_A$log2FoldChange < 0), "\n")
+write.csv(deg_A,
+  "D:/ASHISH/lams_analysis/new_analysis/LAMVEH_vs_LAMNAG/DEGs_LAMVEH_vs_LAMNAG.csv")
+
+# ── Top 100 by variance ───────────────────────────────────────────────────────
+genes_A <- rownames(deg_A)
+rv_A    <- rowVars(assay(vsd_lamNAGvslamVEH)[genes_A, ])
+top100_A <- genes_A[order(rv_A, decreasing = TRUE)[1:min(100, length(genes_A))]]
+cat("Genes in heatmap:", length(top100_A), "\n")
+
+# ── Matrix ────────────────────────────────────────────────────────────────────
+mat_A        <- assay(vsd_lamNAGvslamVEH)[top100_A, ]
+mat_scaled_A <- t(scale(t(mat_A)))
+mat_scaled_A <- pmax(pmin(mat_scaled_A, 2), -2)
+
+# ── Column annotation ─────────────────────────────────────────────────────────
+anno_A       <- as.data.frame(colData(vsd_lamNAGvslamVEH)[, c("CellType", "Treatment")])
+anno_A$Group <- factor(
+  paste0(anno_A$CellType, anno_A$Treatment),
+  levels = c("LAMVEH", "LAMNAG"))
+
+col_order_A  <- order(anno_A$Group)
+mat_scaled_A <- mat_scaled_A[, col_order_A]
+anno_A       <- anno_A[col_order_A, , drop = FALSE]
+
+# ── Colors ────────────────────────────────────────────────────────────────────
+col_fun_A <- colorRamp2(
+  c(-2, -1, 0, 1, 2),
+  c("#2166AC", "#92C5DE", "white", "#F4A582", "#B2182B")
+)
+
+# Replace this in ALL 4 heatmaps (change _A to _B, _C, _D accordingly)
+
+col_anno_A <- HeatmapAnnotation(
+  Group = anno_A$Group,
+  col = list(
+    Group = c(
+      "ConVEH" = "#42d4f4",
+      "ConNAG" = "#e6194B",
+      "LAMVEH" = "#d95f02",
+      "LAMNAG" = "#2BC016"
+    )
+  ),
+  annotation_name_gp   = gpar(fontsize = 9, fontface = "bold"),
+  annotation_name_side = "left",
+  simple_anno_size     = unit(4, "mm"),
+  gap                  = unit(1, "mm"),
+  border               = FALSE
+)
+
+# ── LFC barplot ───────────────────────────────────────────────────────────────
+lfc_A <- as.data.frame(res_LAMVEH_vs_LAMNAG)[top100_A, "log2FoldChange"]
+lfc_A[is.na(lfc_A)] <- 0
+
+row_anno_A <- rowAnnotation(
+  "log2FC" = anno_barplot(
+    lfc_A, baseline = 0,
+    gp    = gpar(fill = ifelse(lfc_A > 0, "#B2182B", "#2166AC"), col = NA),
+    width = unit(2.5, "cm")
+  ),
+  annotation_name_gp  = gpar(fontsize = 8, fontface = "bold"),
+  annotation_name_rot = 0
+)
+
+# ── Significance stars ────────────────────────────────────────────────────────
+df_A    <- as.data.frame(res_LAMVEH_vs_LAMNAG)
+stars_A <- ifelse(
+  !is.na(df_A[top100_A, "padj"]) &
+  df_A[top100_A, "padj"] < FDR_CUT &
+  abs(df_A[top100_A, "log2FoldChange"]) > FC_CUT, "*", ""
+)
+left_anno_A <- rowAnnotation(
+  Sig = anno_text(stars_A, gp = gpar(fontsize = 9, col = "#B2182B"))
+)
+
+# ── Heatmap ───────────────────────────────────────────────────────────────────
+ht_A <- Heatmap(
+  mat_scaled_A,
+  col  = col_fun_A,
+  name = "z-score\n(VST)",
+  cluster_columns          = FALSE,
+  show_column_names        = TRUE,
+  column_names_gp          = gpar(fontsize = 8),
+  column_names_rot         = 45,
+  top_annotation           = col_anno_A,
+  column_split             = anno_A$Group,
+  column_gap               = unit(3, "mm"),
+  column_title             = NULL,
+  cluster_rows             = TRUE,
+  clustering_distance_rows = "pearson",
+  clustering_method_rows   = "ward.D2",
+  show_row_names           = TRUE,
+  row_names_gp             = gpar(fontsize = 7, fontface = "italic"),
+  row_names_side           = "left",
+  row_dend_side            = "right",
+  row_dend_width           = unit(1.5, "cm"),
+  right_annotation         = row_anno_A,
+  left_annotation          = left_anno_A,
+  heatmap_legend_param = list(
+    title         = "z-score",
+    title_gp      = gpar(fontsize = 9, fontface = "bold"),
+    labels_gp     = gpar(fontsize = 8),
+    legend_height = unit(4, "cm"),
+    at            = c(-2, -1, 0, 1, 2),
+    border        = "black"
+  ),
+  width   = unit(10, "cm"),
+  row_gap = unit(0.5, "mm"),
+  border  = FALSE,
+  rect_gp = gpar(col = NA)
+)
+
+pdf("D:/ASHISH/lams_analysis/new_analysis/LAMVEH_vs_LAMNAG/heatmap_A.pdf",
+    width = 10, height = 14)
+draw(ht_A,
+     heatmap_legend_side    = "right",
+     annotation_legend_side = "right",
+     merge_legend           = TRUE,
+     column_title           = "LAMVEH vs LAMNAG ",
+     column_title_gp        = gpar(fontsize = 12, fontface = "bold"),
+     padding                = unit(c(5, 5, 5, 5), "mm"))
+dev.off()
+
+png("D:/ASHISH/lams_analysis/new_analysis/LAMVEH_vs_LAMNAG/heatmap_A.png",
+    width = 10, height = 14, units = "in", res = 600)
+draw(ht_A,
+     heatmap_legend_side    = "right",
+     annotation_legend_side = "right",
+     merge_legend           = TRUE,
+     column_title           = "LAMVEH vs LAMNAG ",
+     column_title_gp        = gpar(fontsize = 12, fontface = "bold"),
+     padding                = unit(c(5, 5, 5, 5), "mm"))
+dev.off()
+cat("✅ Heatmap A saved\n")
+```
+
+```{r}
+group_colors <- c(
+  "ConVEH" = "#42d4f4",
+  "ConNAG" = "#e6194B",
+  "LAMVEH" = "#d95f02",
+  "LAMNAG" = "#2BC016"
+)
+# ══════════════════════════════════════════════════════════════════════════════
+# COMPARISON B — conVEH vs LAMVEH
+# ══════════════════════════════════════════════════════════════════════════════
+cat("\n──── Comparison B: conVEH vs LAMVEH ────\n")
+
+deg_B <- as.data.frame(res_conVEH_vs_LAMVEH) %>%
+  filter(!is.na(padj), padj < FDR_CUT, abs(log2FoldChange) > FC_CUT) %>%
+  arrange(padj)
+cat("Total DEGs:", nrow(deg_B),
+    "| Up:", sum(deg_B$log2FoldChange > 0),
+    "| Down:", sum(deg_B$log2FoldChange < 0), "\n")
+write.csv(deg_B,
+  "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_LAMVEH/DEGs_conVEH_vs_LAMVEH.csv")
+
+genes_B  <- rownames(deg_B)
+rv_B     <- rowVars(assay(vsd_lamvehvsconveh)[genes_B, ])
+top100_B <- genes_B[order(rv_B, decreasing = TRUE)[1:min(100, length(genes_B))]]
+cat("Genes in heatmap:", length(top100_B), "\n")
+
+mat_B        <- assay(vsd_lamvehvsconveh)[top100_B, ]
+mat_scaled_B <- t(scale(t(mat_B)))
+mat_scaled_B <- pmax(pmin(mat_scaled_B, 2), -2)
+
+anno_B       <- as.data.frame(colData(vsd_lamvehvsconveh)[, c("CellType", "Treatment")])
+anno_B$Group <- factor(
+  paste0(ifelse(anno_B$CellType == "BMDM", "Con", "LAM"), anno_B$Treatment),
+  levels = c("ConVEH", "LAMVEH")   # ← only groups present in this comparison
+)
+col_order_B  <- order(anno_B$Group)
+mat_scaled_B <- mat_scaled_B[, col_order_B]
+anno_B       <- anno_B[col_order_B, , drop = FALSE]
+
+col_fun_B <- colorRamp2(
+  c(-2, -1, 0, 1, 2),
+  c("#2166AC", "#92C5DE", "white", "#F4A582", "#B2182B")
+)
+
+col_anno_B <- HeatmapAnnotation(
+  Group = anno_B$Group,            # ← anno_B not anno_A
+  col   = list(Group = group_colors),
+  annotation_name_gp   = gpar(fontsize = 9, fontface = "bold"),
+  annotation_name_side = "left",
+  simple_anno_size     = unit(4, "mm"),
+  gap                  = unit(1, "mm"),
+  border               = FALSE
+)
+
+lfc_B <- as.data.frame(res_conVEH_vs_LAMVEH)[top100_B, "log2FoldChange"]
+lfc_B[is.na(lfc_B)] <- 0
+
+row_anno_B <- rowAnnotation(
+  "log2FC" = anno_barplot(
+    lfc_B, baseline = 0,
+    gp    = gpar(fill = ifelse(lfc_B > 0, "#B2182B", "#2166AC"), col = NA),
+    width = unit(2.5, "cm")
+  ),
+  annotation_name_gp  = gpar(fontsize = 8, fontface = "bold"),
+  annotation_name_rot = 0
+)
+
+df_B    <- as.data.frame(res_conVEH_vs_LAMVEH)
+stars_B <- ifelse(
+  !is.na(df_B[top100_B, "padj"]) &
+  df_B[top100_B, "padj"] < FDR_CUT &
+  abs(df_B[top100_B, "log2FoldChange"]) > FC_CUT, "*", ""
+)
+left_anno_B <- rowAnnotation(
+  Sig = anno_text(stars_B, gp = gpar(fontsize = 9, col = "#B2182B"))
+)
+
+ht_B <- Heatmap(
+  mat_scaled_B,
+  col  = col_fun_B,
+  name = "z-score\n(VST)",
+  cluster_columns          = FALSE,
+  show_column_names        = TRUE,
+  column_names_gp          = gpar(fontsize = 8),
+  column_names_rot         = 45,
+  top_annotation           = col_anno_B,
+  column_split             = anno_B$Group,   # ← drives the gap
+  column_gap               = unit(3, "mm"),
+  column_title             = NULL,
+  cluster_rows             = TRUE,
+  clustering_distance_rows = "pearson",
+  clustering_method_rows   = "ward.D2",
+  show_row_names           = TRUE,
+  row_names_gp             = gpar(fontsize = 7, fontface = "italic"),
+  row_names_side           = "left",
+  row_dend_side            = "right",
+  row_dend_width           = unit(1.5, "cm"),
+  right_annotation         = row_anno_B,
+  left_annotation          = left_anno_B,
+  heatmap_legend_param = list(
+    title         = "z-score",
+    title_gp      = gpar(fontsize = 9, fontface = "bold"),
+    labels_gp     = gpar(fontsize = 8),
+    legend_height = unit(4, "cm"),
+    at            = c(-2, -1, 0, 1, 2),
+    border        = "black"
+  ),
+  width   = unit(10, "cm"),
+  row_gap = unit(0.5, "mm"),
+  border  = FALSE,
+  rect_gp = gpar(col = NA)
+)
+
+pdf("D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_LAMVEH/heatmap_B.pdf",
+    width = 10, height = 14)
+draw(ht_B,
+     heatmap_legend_side    = "right",
+     annotation_legend_side = "right",
+     merge_legend           = TRUE,
+     column_title           = "conVEH vs LAMVEH",
+     column_title_gp        = gpar(fontsize = 12, fontface = "bold"),
+     padding                = unit(c(5, 5, 5, 5), "mm"))
+dev.off()
+
+png("D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_LAMVEH/heatmap_B.png",
+    width = 10, height = 14, units = "in", res = 600)
+draw(ht_B,
+     heatmap_legend_side    = "right",
+     annotation_legend_side = "right",
+     merge_legend           = TRUE,
+     column_title           = "conVEH vs LAMVEH",
+     column_title_gp        = gpar(fontsize = 12, fontface = "bold"),
+     padding                = unit(c(5, 5, 5, 5), "mm"))
+dev.off()
+cat("✅ Heatmap B saved\n")
+```
+
+
+```{r}
+# ══════════════════════════════════════════════════════════════════════════════
+# COMPARISON B — conVEH vs LAMVEH
+# ══════════════════════════════════════════════════════════════════════════════
+cat("\n──── Comparison B: conVEH vs LAMVEH ────\n")
+
+# ── DEG table ─────────────────────────────────────────────────────────────────
+deg_B <- as.data.frame(res_conVEH_vs_LAMVEH) %>%
+  filter(!is.na(padj), padj < FDR_CUT, abs(log2FoldChange) > FC_CUT) %>%
+  arrange(padj)
+cat("Total DEGs:", nrow(deg_B),
+    "| Up:", sum(deg_B$log2FoldChange > 0),
+    "| Down:", sum(deg_B$log2FoldChange < 0), "\n")
+write.csv(deg_B,
+  "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_LAMVEH/DEGs_conVEH_vs_LAMVEH.csv")
+
+# ── Top 100 by variance ───────────────────────────────────────────────────────
+genes_B  <- rownames(deg_B)
+rv_B     <- rowVars(assay(vsd_lamvehvsconveh)[genes_B, ])
+top100_B <- genes_B[order(rv_B, decreasing = TRUE)[1:min(100, length(genes_B))]]
+cat("Genes in heatmap:", length(top100_B), "\n")
+
+# ── Matrix ────────────────────────────────────────────────────────────────────
+mat_B        <- assay(vsd_lamvehvsconveh)[top100_B, ]
+mat_scaled_B <- t(scale(t(mat_B)))
+mat_scaled_B <- pmax(pmin(mat_scaled_B, 2), -2)
+
+# ── Column annotation ─────────────────────────────────────────────────────────
+anno_B       <- as.data.frame(colData(vsd_lamvehvsconveh)[, c("CellType", "Treatment")])
+anno_B$Group <- factor(
+  paste0(anno_B$CellType, anno_B$Treatment),
+  levels = c("ConVEH", "LAMVEH")
+)
+
+col_order_B  <- order(anno_B$Group)
+mat_scaled_B <- mat_scaled_B[, col_order_B]
+anno_B       <- anno_B[col_order_B, , drop = FALSE]
+
+# ── Colors ────────────────────────────────────────────────────────────────────
+col_fun_B <- colorRamp2(
+  c(-2, -1, 0, 1, 2),
+  c("#2166AC", "#92C5DE", "white", "#F4A582", "#B2182B")
+)
+
+# ── Top annotation ────────────────────────────────────────────────────────────
+# Replace this in ALL 4 heatmaps (change _A to _B, _C, _D accordingly)
+
+col_anno_B <- HeatmapAnnotation(
+  Group = anno_B$Group,
+  col = list(
+    Group = c(
+      "ConVEH" = "#42d4f4",
+      "ConNAG" = "#e6194B",
+      "LAMVEH" = "#d95f02",
+      "LAMNAG" = "#2BC016"
+    )
+  ),
+  annotation_name_gp   = gpar(fontsize = 9, fontface = "bold"),
+  annotation_name_side = "left",
+  simple_anno_size     = unit(4, "mm"),
+  gap                  = unit(1, "mm"),
+  border               = FALSE
+)
+
+# ── LFC barplot ───────────────────────────────────────────────────────────────
+lfc_B <- as.data.frame(res_conVEH_vs_LAMVEH)[top100_B, "log2FoldChange"]
+lfc_B[is.na(lfc_B)] <- 0
+
+row_anno_B <- rowAnnotation(
+  "log2FC" = anno_barplot(
+    lfc_B, baseline = 0,
+    gp    = gpar(fill = ifelse(lfc_B > 0, "#B2182B", "#2166AC"), col = NA),
+    width = unit(2.5, "cm")
+  ),
+  annotation_name_gp  = gpar(fontsize = 8, fontface = "bold"),
+  annotation_name_rot = 0
+)
+
+# ── Significance stars ────────────────────────────────────────────────────────
+df_B    <- as.data.frame(res_conVEH_vs_LAMVEH)
+stars_B <- ifelse(
+  !is.na(df_B[top100_B, "padj"]) &
+  df_B[top100_B, "padj"] < FDR_CUT &
+  abs(df_B[top100_B, "log2FoldChange"]) > FC_CUT, "*", ""
+)
+left_anno_B <- rowAnnotation(
+  Sig = anno_text(stars_B, gp = gpar(fontsize = 9, col = "#B2182B"))
+)
+
+# ── Heatmap ───────────────────────────────────────────────────────────────────
+ht_B <- Heatmap(
+  mat_scaled_B,
+  col  = col_fun_B,
+  name = "z-score\n(VST)",
+  cluster_columns          = FALSE,
+  show_column_names        = TRUE,
+  column_names_gp          = gpar(fontsize = 8),
+  column_names_rot         = 45,
+  top_annotation           = col_anno_B,
+  column_split             = anno_B$Group,
+  column_gap               = unit(3, "mm"),
+  column_title             = NULL,
+  cluster_rows             = TRUE,
+  clustering_distance_rows = "pearson",
+  clustering_method_rows   = "ward.D2",
+  show_row_names           = TRUE,
+  row_names_gp             = gpar(fontsize = 7, fontface = "italic"),
+  row_names_side           = "left",
+  row_dend_side            = "right",
+  row_dend_width           = unit(1.5, "cm"),
+  right_annotation         = row_anno_B,
+  left_annotation          = left_anno_B,
+  heatmap_legend_param = list(
+    title         = "z-score",
+    title_gp      = gpar(fontsize = 9, fontface = "bold"),
+    labels_gp     = gpar(fontsize = 8),
+    legend_height = unit(4, "cm"),
+    at            = c(-2, -1, 0, 1, 2),
+    border        = "black"
+  ),
+  width   = unit(10, "cm"),
+  row_gap = unit(0.5, "mm"),
+  border  = FALSE,
+  rect_gp = gpar(col = NA)
+)
+ht_B
+pdf("D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_LAMVEH/heatmap_B.pdf",
+    width = 10, height = 14)
+draw(ht_B,
+     heatmap_legend_side    = "right",
+     annotation_legend_side = "right",
+     merge_legend           = TRUE,
+     column_title           = "conVEH vs LAMVEH ",
+     column_title_gp        = gpar(fontsize = 12, fontface = "bold"),
+     padding                = unit(c(5, 5, 5, 5), "mm"))
+dev.off()
+
+png("D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_LAMVEH/heatmap_B.png",
+    width = 10, height = 14, units = "in", res = 600)
+draw(ht_B,
+     heatmap_legend_side    = "right",
+     annotation_legend_side = "right",
+     merge_legend           = TRUE,
+     column_title           = "conVEH vs LAMVEH ",
+     column_title_gp        = gpar(fontsize = 12, fontface = "bold"),
+     padding                = unit(c(5, 5, 5, 5), "mm"))
+dev.off()
+cat("✅ Heatmap B saved\n")
+```
+
+
+```{r}
+# ══════════════════════════════════════════════════════════════════════════════
+# COMPARISON C — conNAG vs LAMNAG
+# ══════════════════════════════════════════════════════════════════════════════
+cat("\n──── Comparison C: conNAG vs LAMNAG ────\n")
+
+# ── DEG table ─────────────────────────────────────────────────────────────────
+deg_C <- as.data.frame(res_conNAG_vs_LAMNAG) %>%
+  filter(!is.na(padj), padj < FDR_CUT, abs(log2FoldChange) > FC_CUT) %>%
+  arrange(padj)
+cat("Total DEGs:", nrow(deg_C),
+    "| Up:", sum(deg_C$log2FoldChange > 0),
+    "| Down:", sum(deg_C$log2FoldChange < 0), "\n")
+write.csv(deg_C,
+  "D:/ASHISH/lams_analysis/new_analysis/conNAG_vs_LAMNAG/DEGs_conNAG_vs_LAMNAG.csv")
+
+# ── Top 100 by variance ───────────────────────────────────────────────────────
+genes_C  <- rownames(deg_C)
+rv_C     <- rowVars(assay(vsd_lamNAGvsconNAG)[genes_C, ])
+top100_C <- genes_C[order(rv_C, decreasing = TRUE)[1:min(100, length(genes_C))]]
+cat("Genes in heatmap:", length(top100_C), "\n")
+
+# ── Matrix ────────────────────────────────────────────────────────────────────
+mat_C        <- assay(vsd_lamNAGvsconNAG)[top100_C, ]
+mat_scaled_C <- t(scale(t(mat_C)))
+mat_scaled_C <- pmax(pmin(mat_scaled_C, 2), -2)
+
+# ── Column annotation ─────────────────────────────────────────────────────────
+anno_C       <- as.data.frame(colData(vsd_lamNAGvsconNAG)[, c("CellType", "Treatment")])
+anno_C$Group <- factor(
+  paste0(anno_C$CellType, anno_C$Treatment),
+  levels = c("ConNAG", "LAMNAG")
+)
+col_order_C  <- order(anno_C$Group)
+mat_scaled_C <- mat_scaled_C[, col_order_C]
+anno_C       <- anno_C[col_order_C, , drop = FALSE]
+
+# ── Colors ────────────────────────────────────────────────────────────────────
+col_fun_C <- colorRamp2(
+  c(-2, -1, 0, 1, 2),
+  c("#2166AC", "#92C5DE", "white", "#F4A582", "#B2182B")
+)
+
+# ── Top annotation ────────────────────────────────────────────────────────────
+# Replace this in ALL 4 heatmaps (change _A to _B, _C, _D accordingly)
+
+col_anno_C <- HeatmapAnnotation(
+  Group = anno_C$Group,
+  col = list(
+    Group = c(
+      "ConVEH" = "#42d4f4",
+      "ConNAG" = "#e6194B",
+      "LAMVEH" = "#d95f02",
+      "LAMNAG" = "#2BC016"
+    )
+  ),
+  annotation_name_gp   = gpar(fontsize = 9, fontface = "bold"),
+  annotation_name_side = "left",
+  simple_anno_size     = unit(4, "mm"),
+  gap                  = unit(1, "mm"),
+  border               = FALSE
+)
+
+# ── LFC barplot ───────────────────────────────────────────────────────────────
+lfc_C <- as.data.frame(res_conNAG_vs_LAMNAG)[top100_C, "log2FoldChange"]
+lfc_C[is.na(lfc_C)] <- 0
+
+row_anno_C <- rowAnnotation(
+  "log2FC" = anno_barplot(
+    lfc_C, baseline = 0,
+    gp    = gpar(fill = ifelse(lfc_C > 0, "#B2182B", "#2166AC"), col = NA),
+    width = unit(2.5, "cm")
+  ),
+  annotation_name_gp  = gpar(fontsize = 8, fontface = "bold"),
+  annotation_name_rot = 0
+)
+
+# ── Significance stars ────────────────────────────────────────────────────────
+df_C    <- as.data.frame(res_conNAG_vs_LAMNAG)
+stars_C <- ifelse(
+  !is.na(df_C[top100_C, "padj"]) &
+  df_C[top100_C, "padj"] < FDR_CUT &
+  abs(df_C[top100_C, "log2FoldChange"]) > FC_CUT, "*", ""
+)
+left_anno_C <- rowAnnotation(
+  Sig = anno_text(stars_C, gp = gpar(fontsize = 9, col = "#B2182B"))
+)
+
+# ── Heatmap ───────────────────────────────────────────────────────────────────
+ht_C <- Heatmap(
+  mat_scaled_C,
+  col  = col_fun_C,
+  name = "z-score\n(VST)",
+  cluster_columns          = FALSE,
+  show_column_names        = TRUE,
+  column_names_gp          = gpar(fontsize = 8),
+  column_names_rot         = 45,
+  top_annotation           = col_anno_C,
+  column_split             = anno_C$Group,
+  column_gap               = unit(3, "mm"),
+  column_title             = NULL,
+  cluster_rows             = TRUE,
+  clustering_distance_rows = "pearson",
+  clustering_method_rows   = "ward.D2",
+  show_row_names           = TRUE,
+  row_names_gp             = gpar(fontsize = 7, fontface = "italic"),
+  row_names_side           = "left",
+  row_dend_side            = "right",
+  row_dend_width           = unit(1.5, "cm"),
+  right_annotation         = row_anno_C,
+  left_annotation          = left_anno_C,
+  heatmap_legend_param = list(
+    title         = "z-score",
+    title_gp      = gpar(fontsize = 9, fontface = "bold"),
+    labels_gp     = gpar(fontsize = 8),
+    legend_height = unit(4, "cm"),
+    at            = c(-2, -1, 0, 1, 2),
+    border        = "black"
+  ),
+  width   = unit(10, "cm"),
+  row_gap = unit(0.5, "mm"),
+  border  = FALSE,
+  rect_gp = gpar(col = NA)
+)
+
+pdf("D:/ASHISH/lams_analysis/new_analysis/conNAG_vs_LAMNAG/heatmap_C.pdf",
+    width = 10, height = 14)
+draw(ht_C,
+     heatmap_legend_side    = "right",
+     annotation_legend_side = "right",
+     merge_legend           = TRUE,
+     column_title           = "conNAG vs LAMNAG ",
+     column_title_gp        = gpar(fontsize = 12, fontface = "bold"),
+     padding                = unit(c(5, 5, 5, 5), "mm"))
+dev.off()
+
+png("D:/ASHISH/lams_analysis/new_analysis/conNAG_vs_LAMNAG/heatmap_C.png",
+    width = 10, height = 14, units = "in", res = 600)
+draw(ht_C,
+     heatmap_legend_side    = "right",
+     annotation_legend_side = "right",
+     merge_legend           = TRUE,
+     column_title           = "conNAG vs LAMNAG",
+     column_title_gp        = gpar(fontsize = 12, fontface = "bold"),
+     padding                = unit(c(5, 5, 5, 5), "mm"))
+dev.off()
+cat("✅ Heatmap C saved\n")
+```
+
+
+```{r}
+# ══════════════════════════════════════════════════════════════════════════════
+# COMPARISON D — conVEH vs conNAG
+# ══════════════════════════════════════════════════════════════════════════════
+cat("\n──── Comparison D: conVEH vs conNAG ────\n")
+
+# ── DEG table ─────────────────────────────────────────────────────────────────
+deg_D <- as.data.frame(res_conVEH_vs_conNAG) %>%
+  filter(!is.na(padj), padj < FDR_CUT, abs(log2FoldChange) > FC_CUT) %>%
+  arrange(padj)
+cat("Total DEGs:", nrow(deg_D),
+    "| Up:", sum(deg_D$log2FoldChange > 0),
+    "| Down:", sum(deg_D$log2FoldChange < 0), "\n")
+write.csv(deg_D,
+  "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/DEGs_conVEH_vs_conNAG.csv")
+
+# ── Top 100 by variance ───────────────────────────────────────────────────────
+genes_D  <- rownames(deg_D)
+rv_D     <- rowVars(assay(vsd_conVEH_vs_conNAG)[genes_D, ])
+top100_D <- genes_D[order(rv_D, decreasing = TRUE)[1:min(100, length(genes_D))]]
+cat("Genes in heatmap:", length(top100_D), "\n")
+
+# ── Matrix ────────────────────────────────────────────────────────────────────
+mat_D        <- assay(vsd_conVEH_vs_conNAG)[top100_D, ]
+mat_scaled_D <- t(scale(t(mat_D)))
+mat_scaled_D <- pmax(pmin(mat_scaled_D, 2), -2)
+
+# ── Column annotation ─────────────────────────────────────────────────────────
+anno_D       <- as.data.frame(colData(vsd_conVEH_vs_conNAG)[, c("CellType", "Treatment")])
+
+anno_D$Group <- factor(
+  paste0(anno_D$CellType, anno_D$Treatment),
+  levels = c("ConVEH", "ConNAG")
+)
+col_order_D  <- order(anno_D$Group)
+mat_scaled_D <- mat_scaled_D[, col_order_D]
+anno_D       <- anno_D[col_order_D, , drop = FALSE]
+
+# ── Colors ────────────────────────────────────────────────────────────────────
+col_fun_D <- colorRamp2(
+  c(-2, -1, 0, 1, 2),
+  c("#2166AC", "#92C5DE", "white", "#F4A582", "#B2182B")
+)
+
+# ── Top annotation ────────────────────────────────────────────────────────────
+# Replace this in ALL 4 heatmaps (change _A to _B, _C, _D accordingly)
+
+col_anno_d <- HeatmapAnnotation(
+  Group = anno_D$Group,
+  col = list(
+    Group = c(
+      "ConVEH" = "#42d4f4",
+      "ConNAG" = "#e6194B",
+      "LAMVEH" = "#d95f02",
+      "LAMNAG" = "#2BC016"
+    )
+  ),
+  annotation_name_gp   = gpar(fontsize = 9, fontface = "bold"),
+  annotation_name_side = "left",
+  simple_anno_size     = unit(4, "mm"),
+  gap                  = unit(1, "mm"),
+  border               = FALSE
+)
+
+# ── LFC barplot ───────────────────────────────────────────────────────────────
+lfc_D <- as.data.frame(res_conVEH_vs_conNAG)[top100_D, "log2FoldChange"]
+lfc_D[is.na(lfc_D)] <- 0
+
+row_anno_D <- rowAnnotation(
+  "log2FC" = anno_barplot(
+    lfc_D, baseline = 0,
+    gp    = gpar(fill = ifelse(lfc_D > 0, "#B2182B", "#2166AC"), col = NA),
+    width = unit(2.5, "cm")
+  ),
+  annotation_name_gp  = gpar(fontsize = 8, fontface = "bold"),
+  annotation_name_rot = 0
+)
+
+# ── Significance stars ────────────────────────────────────────────────────────
+df_D    <- as.data.frame(res_conVEH_vs_conNAG)
+stars_D <- ifelse(
+  !is.na(df_D[top100_D, "padj"]) &
+  df_D[top100_D, "padj"] < FDR_CUT &
+  abs(df_D[top100_D, "log2FoldChange"]) > FC_CUT, "*", ""
+)
+left_anno_D <- rowAnnotation(
+  Sig = anno_text(stars_D, gp = gpar(fontsize = 9, col = "#B2182B"))
+)
+
+# ── Heatmap ───────────────────────────────────────────────────────────────────
+ht_D <- Heatmap(
+  mat_scaled_D,
+  col  = col_fun_D,
+  name = "z-score\n(VST)",
+  cluster_columns          = FALSE,
+  show_column_names        = TRUE,
+  column_names_gp          = gpar(fontsize = 8),
+  column_names_rot         = 45,
+  top_annotation           = col_anno_d,
+  column_split             = anno_D$Group,
+  column_gap               = unit(3, "mm"),
+  column_title             = NULL,
+  cluster_rows             = TRUE,
+  clustering_distance_rows = "pearson",
+  clustering_method_rows   = "ward.D2",
+  show_row_names           = TRUE,
+  row_names_gp             = gpar(fontsize = 7, fontface = "italic"),
+  row_names_side           = "left",
+  row_dend_side            = "right",
+  row_dend_width           = unit(1.5, "cm"),
+  right_annotation         = row_anno_D,
+  left_annotation          = left_anno_D,
+  heatmap_legend_param = list(
+    title         = "z-score",
+    title_gp      = gpar(fontsize = 9, fontface = "bold"),
+    labels_gp     = gpar(fontsize = 8),
+    legend_height = unit(4, "cm"),
+    at            = c(-2, -1, 0, 1, 2),
+    border        = "black"
+  ),
+  width   = unit(10, "cm"),
+  row_gap = unit(0.5, "mm"),
+  border  = FALSE,
+  rect_gp = gpar(col = NA)
+)
+
+pdf("D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/heatmap_D.pdf",
+    width = 10, height = 8)
+draw(ht_D,
+     heatmap_legend_side    = "right",
+     annotation_legend_side = "right",
+     merge_legend           = TRUE,
+     column_title           = "conVEH vs conNAG — Top 50 DEGs",
+     column_title_gp        = gpar(fontsize = 12, fontface = "bold"),
+     padding                = unit(c(5, 5, 5, 5), "mm"))
+dev.off()
+
+png("D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/heatmap_D.png",
+    width = 10, height = 8, units = "in", res = 600)
+draw(ht_D,
+     heatmap_legend_side    = "right",
+     annotation_legend_side = "right",
+     merge_legend           = TRUE,
+     column_title           = "conVEH vs conNAG — Top 50 DEGs",
+     column_title_gp        = gpar(fontsize = 12, fontface = "bold"),
+     padding                = unit(c(5, 5, 5, 5), "mm"))
+dev.off()
+cat("✅ Heatmap D saved\n")
+
+cat("\n✅ All 4 heatmaps complete.\n")
+```
+
+## HEATMAP OF ALL CONDITION
+```{r}
+# ══════════════════════════════════════════════════════════════════════════════
+# TRIPLE BLOCK HEATMAP — Lipid Genes | Iron Genes | Top 50 DEGs
+# ══════════════════════════════════════════════════════════════════════════════
+
+library(ComplexHeatmap)
+library(circlize)
+library(matrixStats)
+library(dplyr)
+
+# ── Gene sets ─────────────────────────────────────────────────────────────────
+lipid_genes <- c(
+  "Cd163", "Trem2", "Cd9", "Lpl", "Cd36",
+  "Abca1", "Fabp1", "Fabp4", "Plin2", "Apoe",
+  "Spp1", "Gpnmb", "Lgals1", "Lgals2", "Lgals3",
+  "Lgals4", "Lgals5", "Mmp12", "Slc9a9" 
+)
+
+iron_genes <- c(
+  "Fth1", "Slc40a1",
+  "Tfrc", "Tfr2",
+  "Slc39a14", "Slc39a8", "Slc11a2",
+  "Heph", "Cp", "Ftl1",
+  "Ncoa4", "Ireb2", "Aco1",
+  "Hamp", "Hfe",
+  "Hmox1", "Hmox2",
+  "Slc48a1", "Flvcr1", "Gpr18", "Fbxl5"
+)
+
+# ── Shared colors ─────────────────────────────────────────────────────────────
+col_fun_gs <- colorRamp2(
+  c(-2, -1, 0, 1, 2),
+  c("#2166AC", "#92C5DE", "white", "#F4A582", "#B2182B")
+)
+
+group_colors <- c(
+  "ConVEH" = "#42d4f4",
+  "ConNAG" = "#e6194B",
+  "LAMVEH" = "#d95f02",
+  "LAMNAG" = "#2BC016"
+)
+
+FC_CUT  <- 1
+FDR_CUT <- 0.05
+
+# ══════════════════════════════════════════════════════════════════════════════
+# MASTER HELPER — 3-block heatmap
+# ══════════════════════════════════════════════════════════════════════════════
+make_triple_heatmap <- function(vsd_obj,
+                                 res_obj,
+                                 lipid_genes,
+                                 iron_genes,
+                                 group_levels,
+                                 comp_title) {
+
+  # ── 1. Lipid genes available ───────────────────────────────────────────────
+  lipid_avail   <- intersect(lipid_genes, rownames(vsd_obj))
+  lipid_missing <- setdiff(lipid_genes, rownames(vsd_obj))
+  if (length(lipid_missing) > 0)
+    message("  [Lipid] Not in vsd: ", paste(lipid_missing, collapse = ", "))
+  cat("  Lipid genes found:", length(lipid_avail), "\n")
+
+  # ── 2. Iron genes available ────────────────────────────────────────────────
+  iron_avail   <- intersect(iron_genes, rownames(vsd_obj))
+  iron_missing <- setdiff(iron_genes, rownames(vsd_obj))
+  if (length(iron_missing) > 0)
+    message("  [Iron] Not in vsd: ", paste(iron_missing, collapse = ", "))
+  cat("  Iron genes found:", length(iron_avail), "\n")
+
+  # ── 3. Top 50 DEGs by variance ───────────────────────────────────────────
+  deg_df    <- as.data.frame(res_obj) %>%
+    filter(!is.na(padj), padj < FDR_CUT, abs(log2FoldChange) > FC_CUT) %>%
+    arrange(padj)
+  genes_deg <- intersect(rownames(deg_df), rownames(vsd_obj))
+
+  if (length(genes_deg) == 0) {
+    warning("  No DEGs found — skipping: ", comp_title)
+    return(invisible(NULL))
+  }
+
+  rv        <- rowVars(assay(vsd_obj)[genes_deg, , drop = FALSE])
+  top100    <- genes_deg[order(rv, decreasing = TRUE)[1:min(50, length(rv))]]
+  cat("  Top DEGs found:", length(top100), "\n")
+
+  # ── 4. Remove overlap — lipid & iron take priority over DEG block ──────────
+  # genes already in lipid or iron are removed from DEG block only
+  deg_only  <- setdiff(top100,    c(lipid_avail, iron_avail))
+  # iron block: remove genes already in lipid block
+  iron_only <- setdiff(iron_avail, lipid_avail)
+
+  cat("  Lipid block:", length(lipid_avail),
+      "| Iron block:", length(iron_only),
+      "| DEG block:",  length(deg_only), "\n")
+
+  # ── 5. Build combined gene list + row split factor ─────────────────────────
+  all_genes <- c(lipid_avail, iron_only, deg_only)
+
+  row_split <- factor(
+    c(rep("① Lipid Genes",        length(lipid_avail)),
+      rep("② Iron Metabolism",    length(iron_only)),
+      rep("③ Top 50 DEGs",       length(deg_only))),
+    levels = c("① Lipid Genes", "② Iron Metabolism", "③ Top 50 DEGs")
+  )
+  cat("  Total rows:", length(all_genes), "\n")
+
+  # ── 6. Matrix & z-score ───────────────────────────────────────────────────
+  mat        <- assay(vsd_obj)[all_genes, , drop = FALSE]
+  mat_scaled <- t(scale(t(mat)))
+  mat_scaled <- pmax(pmin(mat_scaled, 2), -2)
+
+  # ── 7. Column ordering ────────────────────────────────────────────────────
+  cd       <- as.data.frame(colData(vsd_obj)[, c("CellType", "Treatment")])
+  cd$Group <- factor(paste0(cd$CellType, cd$Treatment),
+                     levels = group_levels)
+  col_ord    <- order(cd$Group)
+  mat_scaled <- mat_scaled[, col_ord, drop = FALSE]
+  cd         <- cd[col_ord, , drop = FALSE]
+
+  # ── 8. Top column annotation ──────────────────────────────────────────────
+  col_anno <- HeatmapAnnotation(
+    Group = cd$Group,
+    col   = list(Group = group_colors),
+    annotation_name_gp   = gpar(fontsize = 9, fontface = "bold"),
+    annotation_name_side = "left",
+    simple_anno_size     = unit(5, "mm"),
+    gap                  = unit(1, "mm"),
+    border               = FALSE
+  )
+
+  # ── 9. Right annotation — LFC barplot ─────────────────────────────────────
+  df_res  <- as.data.frame(res_obj)
+  lfc_vec <- df_res[all_genes, "log2FoldChange"]
+  lfc_vec[is.na(lfc_vec)] <- 0
+
+  row_anno <- rowAnnotation(
+    "log2FC" = anno_barplot(
+      lfc_vec, baseline = 0,
+      gp    = gpar(fill = ifelse(lfc_vec > 0, "#B2182B", "#2166AC"),
+                   col = NA),
+      width = unit(2.5, "cm")
+    ),
+    annotation_name_gp  = gpar(fontsize = 8, fontface = "bold"),
+    annotation_name_rot = 0
+  )
+
+  # ── 10. Left annotation — significance stars ───────────────────────────────
+  stars_vec <- ifelse(
+    !is.na(df_res[all_genes, "padj"]) &
+    df_res[all_genes, "padj"] < FDR_CUT &
+    abs(df_res[all_genes, "log2FoldChange"]) > FC_CUT, "*", ""
+  )
+  left_anno <- rowAnnotation(
+    Sig = anno_text(stars_vec, gp = gpar(fontsize = 10, col = "#B2182B"))
+  )
+
+  # ── 11. Row title colors per block ────────────────────────────────────────
+  # lipid = teal, iron = brown, DEGs = dark grey
+  row_title_colors <- c(
+    "① Lipid Genes"     = "#0077A8",
+    "② Iron Metabolism" = "#E83A3F",
+    "③ Top 50 DEGs"    = "#FF930F"
+  )
+
+  # ── 12. Heatmap ───────────────────────────────────────────────────────────
+  ht <- Heatmap(
+    mat_scaled,
+    col  = col_fun_gs,
+    name = "z-score\n(VST)",
+
+    # columns
+    cluster_columns          = FALSE,
+    show_column_names        = TRUE,
+    column_names_gp          = gpar(fontsize = 9),
+    column_names_rot         = 45,
+    top_annotation           = col_anno,
+    column_split             = cd$Group,
+    column_gap               = unit(3, "mm"),
+    column_title             = NULL,
+
+    # row split — 3 blocks, fixed order
+    row_split                = row_split,
+    cluster_row_slices       = FALSE,
+    row_title_gp             = gpar(
+                                 fontsize  = 10,
+                                 fontface  = "bold",
+                                 col       = c("#0077A8",
+                                               "#E83A3F",
+                                               "#FF930F")
+                               ),
+    row_title_rot            = 0,
+    row_gap                  = unit(6, "mm"),
+
+    # clustering within each block independently
+    cluster_rows             = TRUE,
+    clustering_distance_rows = "pearson",
+    clustering_method_rows   = "ward.D2",
+
+    show_row_names           = TRUE,
+    row_names_gp             = gpar(fontsize = 8, fontface = "italic"),
+    row_names_side           = "left",
+    row_dend_side            = "right",
+    row_dend_width           = unit(1.5, "cm"),
+
+    right_annotation         = row_anno,
+    left_annotation          = left_anno,
+
+    heatmap_legend_param = list(
+      title         = "z-score",
+      title_gp      = gpar(fontsize = 9, fontface = "bold"),
+      labels_gp     = gpar(fontsize = 8),
+      legend_height = unit(4, "cm"),
+      at            = c(-2, -1, 0, 1, 2),
+      border        = "black"
+    ),
+    width   = unit(10, "cm"),
+    border  = TRUE,
+    rect_gp = gpar(col = NA)
+  )
+
+  return(ht)
+}
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SAVE HELPER
+# ══════════════════════════════════════════════════════════════════════════════
+save_triple_heatmap <- function(ht, outdir, filename_base, comp_title) {
+  if (is.null(ht)) return(invisible(NULL))
+  n_rows <- nrow(ht@matrix)
+  h      <-12
+  w      <- 10
+
+  for (ext in c("pdf", "png")) {
+    fpath <- file.path(outdir, paste0(filename_base, ".", ext))
+    if (ext == "pdf") pdf(fpath, width = w, height = h)
+    else              png(fpath, width = w, height = h,
+                          units = "in", res = 600)
+    draw(ht,
+         heatmap_legend_side    = "right",
+         annotation_legend_side = "right",
+         merge_legend           = TRUE,
+         column_title           = comp_title,
+         column_title_gp        = gpar(fontsize = 14, fontface = "bold"),
+         padding                = unit(c(5, 5, 5, 5), "mm"))
+    dev.off()
+  }
+  cat("  ✅ Saved:", filename_base, "\n")
+}
+
+# ══════════════════════════════════════════════════════════════════════════════
+# DIRECTORIES
+# ══════════════════════════════════════════════════════════════════════════════
+dir_A <- "D:/ASHISH/lams_analysis/new_analysis/LAMVEH_vs_LAMNAG"
+dir_B <- "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_LAMVEH"
+dir_C <- "D:/ASHISH/lams_analysis/new_analysis/conNAG_vs_LAMNAG"
+dir_D <- "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG"
+for (d in c(dir_A, dir_B, dir_C, dir_D))
+  if (!dir.exists(d)) dir.create(d, recursive = TRUE)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# COMPARISON A — LAMVEH vs LAMNAG
+# ══════════════════════════════════════════════════════════════════════════════
+cat("\n════ Comp A: LAMVEH vs LAMNAG ════\n")
+ht_A <- make_triple_heatmap(
+  vsd_lamNAGvslamVEH, res_LAMVEH_vs_LAMNAG,
+  lipid_genes, iron_genes,
+  group_levels = c("LAMVEH", "LAMNAG"),
+  comp_title   = "LAMVEH vs LAMNAG"
+)
+save_triple_heatmap(ht_A, dir_A,
+  "heatmap_A_lipid_iron_top100",
+  "LAMVEH vs LAMNAG — Lipid | Iron | Top 50 DEGs")
+
+# ══════════════════════════════════════════════════════════════════════════════
+# COMPARISON B — conVEH vs LAMVEH
+# ══════════════════════════════════════════════════════════════════════════════
+cat("\n════ Comp B: conVEH vs LAMVEH ════\n")
+ht_B <- make_triple_heatmap(
+  vsd_lamvehvsconveh, res_conVEH_vs_LAMVEH,
+  lipid_genes, iron_genes,
+  group_levels = c("ConVEH", "LAMVEH"),
+  comp_title   = "conVEH vs LAMVEH"
+)
+save_triple_heatmap(ht_B, dir_B,
+  "heatmap_B_lipid_iron_top100",
+  "conVEH vs LAMVEH — Lipid | Iron | Top 50 DEGs")
+
+# ══════════════════════════════════════════════════════════════════════════════
+# COMPARISON C — conNAG vs LAMNAG
+# ══════════════════════════════════════════════════════════════════════════════
+cat("\n════ Comp C: conNAG vs LAMNAG ════\n")
+ht_C <- make_triple_heatmap(
+  vsd_lamNAGvsconNAG, res_conNAG_vs_LAMNAG,
+  lipid_genes, iron_genes,
+  group_levels = c("ConNAG", "LAMNAG"),
+  comp_title   = "conNAG vs LAMNAG"
+)
+save_triple_heatmap(ht_C, dir_C,
+  "heatmap_C_lipid_iron_top100",
+  "conNAG vs LAMNAG — Lipid | Iron | Top 50 DEGs")
+
+# ══════════════════════════════════════════════════════════════════════════════
+# COMPARISON D — conVEH vs conNAG
+# ══════════════════════════════════════════════════════════════════════════════
+cat("\n════ Comp D: conVEH vs conNAG ════\n")
+ht_D <- make_triple_heatmap(
+  vsd_conVEH_vs_conNAG, res_conVEH_vs_conNAG,
+  lipid_genes, iron_genes,
+  group_levels = c("ConVEH", "ConNAG"),
+  comp_title   = "conVEH vs conNAG"
+)
+save_triple_heatmap(ht_D, dir_D,
+  "heatmap_D_lipid_iron_top100",
+  "conVEH vs conNAG — Lipid | Iron | Top 50 DEGs")
+
+# ══════════════════════════════════════════════════════════════════════════════
+# DISPLAY ALL 4 IN NOTEBOOK
+# ══════════════════════════════════════════════════════════════════════════════
+cat("\n── Displaying all 4 triple heatmaps ──\n")
+for (ht in list(ht_A, ht_B, ht_C, ht_D)) {
+  if (!is.null(ht))
+    draw(ht, merge_legend = TRUE,
+         padding = unit(c(5, 5, 5, 5), "mm"))
+}
+
+cat("\n✅ All 4 triple-block heatmaps complete.\n")
+```
+
+#volcanno with 50 top gene 
+```{r}
+library(DESeq2)
+library(EnhancedVolcano)
+library(ggplot2)
+library(dplyr)
+
+# =========================================================
+# PARAMETERS
+# =========================================================
+FC_CUT  <- 1
+FDR_CUT <- 0.05
+TOP_N   <- 50
+
+# =========================================================
+# FUNCTION
+# =========================================================
+make_enhanced_volcano <- function(
+    res,
+    title,
+    subtitle = "",
+    fc_cut   = FC_CUT,
+    fdr_cut  = FDR_CUT,
+    top_n    = TOP_N
+) {
+
+  df <- as.data.frame(res) %>%
+    mutate(gene = rownames(.)) %>%
+    filter(!is.na(log2FoldChange), !is.na(padj))
+
+  select_labels <- df %>%
+    filter(padj < fdr_cut, abs(log2FoldChange) > fc_cut) %>%
+    arrange(padj) %>%
+    slice_head(n = top_n) %>%
+    pull(gene)
+
+  n_up   <- sum(df$padj < fdr_cut & df$log2FoldChange >  fc_cut, na.rm = TRUE)
+  n_down <- sum(df$padj < fdr_cut & df$log2FoldChange < -fc_cut, na.rm = TRUE)
+  x_lim  <- ceiling(max(abs(df$log2FoldChange), na.rm = TRUE)) + 1
+
+  p <- EnhancedVolcano(
+    df,
+    lab          = df$gene,
+    selectLab    = select_labels,
+    x            = "log2FoldChange",
+    y            = "padj",
+    title        = title,
+    subtitle     = subtitle,
+    caption      = paste0(
+      "Threshold: |log2FC| > ", fc_cut, " | padj < ", fdr_cut,
+      "\nUpregulated: ", n_up, "    Downregulated: ", n_down
+    ),
+    pCutoff      = fdr_cut,
+    FCcutoff     = fc_cut,
+    pointSize    = 2.3,
+    colAlpha     = 0.85,
+    col          = c("grey75", "royalblue", "forestgreen", "red2"),
+    labSize      = 3.5,
+    boxedLabels  = FALSE,
+    drawConnectors   = TRUE,
+    widthConnectors  = 0.35,
+    colConnectors    = "grey40",
+    max.overlaps     = Inf,
+    legendPosition   = "top",
+    legendLabSize    = 12,
+    legendIconSize   = 4,
+    legendLabels     = c(
+      "NS",
+      expression(Log[2]~FC),
+      "Adjusted p-value",
+      expression(Adjusted~p-value~and~Log[2]~FC)
+    ),
+    gridlines.major  = FALSE,
+    gridlines.minor  = FALSE,
+    border           = "full",
+    borderWidth      = 0.8,
+    borderColour     = "black",
+    cutoffLineType   = "dashed",
+    cutoffLineWidth  = 0.6,
+    cutoffLineCol    = "black",
+    xlim             = c(-x_lim, x_lim),
+    xlab             = bquote(Log[2]~"Fold Change"),
+    titleLabSize     = 18,
+    subtitleLabSize  = 12,
+    captionLabSize   = 11
+  ) +
+    theme_bw(base_size = 14) +
+    theme(
+      plot.title     = element_text(face = "bold", size = 20, hjust = 0.5),
+      plot.subtitle  = element_text(size = 12, color = "grey30", hjust = 0.5),
+      plot.caption   = element_text(size = 11, face = "bold", hjust = 0.5),
+      legend.position    = "top",
+      legend.direction   = "horizontal",
+      legend.justification = "center",
+      legend.box         = "horizontal",
+      legend.title       = element_blank(),
+      legend.text        = element_text(size = 12),
+      axis.title         = element_text(face = "bold", size = 16),
+      axis.text          = element_text(size = 12, color = "black"),
+      panel.grid         = element_blank(),
+      panel.border       = element_rect(colour = "black", fill = NA, linewidth = 0.8)
+    ) +
+    guides(colour = guide_legend(nrow = 1))
+
+  return(p)
+}
+
+# =========================================================
+# COMPARISON A — LAMVEH vs LAMNAG
+# =========================================================
+v_A <- make_enhanced_volcano(
+  res_LAMVEH_vs_LAMNAG,
+  title    = "LAMVEH vs LAMNAG",
+  subtitle = "NAG effect in LAM macrophages"
+)
+
+pdf("D:/ASHISH/lams_analysis/new_analysis/LAMVEH_vs_LAMNAG/volcano_A_all.pdf",
+    width = 10, height = 10)
+print(v_A)
+dev.off()
+
+png("D:/ASHISH/lams_analysis/new_analysis/LAMVEH_vs_LAMNAG/volcano_A_all.png",
+    width = 10, height = 10, units = "in", res = 600)
+print(v_A)
+dev.off()
+cat("✅ Volcano A saved\n")
+
+# =========================================================
+# COMPARISON B — conVEH vs LAMVEH
+# =========================================================
+v_B <- make_enhanced_volcano(
+  res_conVEH_vs_LAMVEH,
+  title    = "conVEH vs LAMVEH",
+  subtitle = "Baseline LAM vs Con transcriptional signature"
+)
+
+pdf("D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_LAMVEH/volcano_B_all.pdf",
+    width = 10, height = 10)
+print(v_B)
+dev.off()
+
+png("D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_LAMVEH/volcano_B_all.png",
+    width = 10, height = 10, units = "in", res = 600)
+print(v_B)
+dev.off()
+cat("✅ Volcano B saved\n")
+
+# =========================================================
+# COMPARISON C — conNAG vs LAMNAG
+# =========================================================
+v_C <- make_enhanced_volcano(
+  res_conNAG_vs_LAMNAG,
+  title    = "conNAG vs LAMNAG",
+  subtitle = "LAM vs Con identity after NAG treatment"
+)
+
+pdf("D:/ASHISH/lams_analysis/new_analysis/conNAG_vs_LAMNAG/volcano_C_all.pdf",
+    width = 10, height = 10)
+print(v_C)
+dev.off()
+
+png("D:/ASHISH/lams_analysis/new_analysis/conNAG_vs_LAMNAG/volcano_C_all.png",
+    width = 10, height = 10, units = "in", res = 600)
+print(v_C)
+dev.off()
+cat("✅ Volcano C saved\n")
+
+# =========================================================
+# COMPARISON D — conVEH vs conNAG
+# =========================================================
+v_D <- make_enhanced_volcano(
+  res_conVEH_vs_conNAG,
+  title    = "conVEH vs conNAG",
+  subtitle = "NAG effect in Con macrophages"
+)
+
+pdf("D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/volcano_D_all.pdf",
+    width = 10, height = 10)
+print(v_D)
+dev.off()
+
+png("D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/volcano_D_all.png",
+    width = 10, height = 10, units = "in", res = 600)
+print(v_D)
+dev.off()
+cat("✅ Volcano D saved\n")
+
+# =========================================================
+# DISPLAY ALL 4
+# =========================================================
+v_A
+v_B
+v_C
+v_D
+
+cat("\n✅ All 4 volcano plots complete.\n")
+```
+## volcano 
+```{r}
+FC_CUT  <- 1
+FDR_CUT <- 0.05
+
+make_fbxl5_volcano <- function(res,
+                                title,
+                                subtitle = "",
+                                fc_cut   = FC_CUT,
+                                fdr_cut  = FDR_CUT) {
+
+  df <- as.data.frame(res) %>%
+    mutate(gene = rownames(.)) %>%
+    filter(!is.na(log2FoldChange), !is.na(padj))
+
+  n_up   <- sum(df$padj < fdr_cut & df$log2FoldChange >  fc_cut, na.rm = TRUE)
+  n_down <- sum(df$padj < fdr_cut & df$log2FoldChange < -fc_cut, na.rm = TRUE)
+  x_lim  <- ceiling(max(abs(df$log2FoldChange), na.rm = TRUE)) + 1
+
+  keyvals        <- rep("grey75", nrow(df))
+  names(keyvals) <- df$gene
+  keyvals[df$padj < fdr_cut & abs(df$log2FoldChange) < fc_cut] <- "forestgreen"
+  keyvals[df$padj > fdr_cut & abs(df$log2FoldChange) > fc_cut] <- "royalblue"
+  keyvals[df$padj < fdr_cut & df$log2FoldChange >  fc_cut]     <- "red2"
+  keyvals[df$padj < fdr_cut & df$log2FoldChange < -fc_cut]     <- "red2"
+  keyvals[df$gene == "Fbxl5"]                                   <- "blue"
+
+  keyvals_size        <- rep(2.0, nrow(df))
+  names(keyvals_size) <- df$gene
+  keyvals_size[df$gene == "Fbxl5"] <- 5.0
+
+  p <- EnhancedVolcano(
+    df,
+   lab              = ifelse(df$gene == "Fbxl5", "Fbxl5", ""),,
+    selectLab        = "Fbxl5",
+    x                = "log2FoldChange",
+    y                = "padj",
+    title            = title,
+    subtitle         = subtitle,
+    caption          = paste0(
+      "Threshold: |log2FC| > ", fc_cut, " | padj < ", fdr_cut,
+      "\nUpregulated: ", n_up, "    Downregulated: ", n_down
+    ),
+    pCutoff          = fdr_cut,
+    FCcutoff         = fc_cut,
+    colCustom        = keyvals,
+    pointSize        = keyvals_size,
+    colAlpha         = 0.80,
+    labSize          = 4.5,
+    # fontface = "bold"  ← REMOVED
+    boxedLabels      = TRUE,
+    drawConnectors   = TRUE,
+    widthConnectors  = 0.5,
+    colConnectors    = "blue",
+    max.overlaps     = Inf,
+    legendPosition   = "none",
+    legendLabSize    = 11,
+    legendIconSize   = 4,
+    legendLabels     = c(
+      "NS",
+      expression(Log[2]~FC),
+      "Adjusted p-value",
+      expression(Adjusted~p-value~and~Log[2]~FC)
+    ),
+    gridlines.major  = FALSE,
+    gridlines.minor  = FALSE,
+    border           = "full",
+    borderWidth      = 0.8,
+    borderColour     = "black",
+    cutoffLineType   = "dashed",
+    cutoffLineWidth  = 0.6,
+    cutoffLineCol    = "black",
+    xlim             = c(-x_lim, x_lim),
+    xlab             = bquote(Log[2]~"Fold Change"),
+    titleLabSize     = 18,
+    subtitleLabSize  = 12,
+    captionLabSize   = 11
+  ) +
+    theme_bw(base_size = 14) +
+    theme(
+      plot.title    = element_text(face = "bold", size = 20, hjust = 0.5),
+      plot.subtitle = element_text(size = 12, color = "grey30", hjust = 0.5),
+      plot.caption  = element_text(size = 11, face = "bold", hjust = 0.5),
+      legend.position      = "top",
+      legend.direction     = "horizontal",
+      legend.justification = "center",
+      legend.title         = element_blank(),
+      legend.text          = element_text(size = 11),
+      axis.title   = element_text(face = "bold", size = 16),
+      axis.text    = element_text(size = 12, color = "black"),
+      panel.grid   = element_blank(),
+      panel.border = element_rect(colour = "black", fill = NA,
+                                  linewidth = 0.8)
+    ) +
+    guides(colour = guide_legend(nrow = 1))
+
+  return(p)
+}
+
+# ══════════════════════════════════════════════════════════════════════════════
+# COMPARISON A — LAMVEH vs LAMNAG
+# ══════════════════════════════════════════════════════════════════════════════
+v_A <- make_fbxl5_volcano(
+  res_LAMVEH_vs_LAMNAG,
+  title    = "LAMVEH vs LAMNAG",
+  subtitle = "NAG effect in LAM macrophages"
+)
+pdf("D:/ASHISH/lams_analysis/new_analysis/LAMVEH_vs_LAMNAG/volcano_A_fbxl5_3.pdf",
+    width = 10, height = 10)
+print(v_A); dev.off()
+png("D:/ASHISH/lams_analysis/new_analysis/LAMVEH_vs_LAMNAG/volcano_A_fbxl5_3.png",
+    width = 10, height = 10, units = "in", res = 600)
+print(v_A); dev.off()
+cat("✅ Volcano A saved\n")
+
+# ══════════════════════════════════════════════════════════════════════════════
+# COMPARISON B — conVEH vs LAMVEH
+# ══════════════════════════════════════════════════════════════════════════════
+v_B <- make_fbxl5_volcano(
+  res_conVEH_vs_LAMVEH,
+  title    = "conVEH vs LAMVEH",
+  subtitle = "Baseline LAM vs Con transcriptional signature"
+)
+pdf("D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_LAMVEH/volcano_B_fbxl5_3.pdf",
+    width = 10, height = 10)
+print(v_B); dev.off()
+png("D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_LAMVEH/volcano_B_fbxl5_3.png",
+    width = 10, height = 10, units = "in", res = 600)
+print(v_B); dev.off()
+cat("✅ Volcano B saved\n")
+
+# ══════════════════════════════════════════════════════════════════════════════
+# COMPARISON C — conNAG vs LAMNAG
+# ══════════════════════════════════════════════════════════════════════════════
+v_C <- make_fbxl5_volcano(
+  res_conNAG_vs_LAMNAG,
+  title    = "conNAG vs LAMNAG",
+  subtitle = "LAM vs Con identity after NAG treatment"
+)
+pdf("D:/ASHISH/lams_analysis/new_analysis/conNAG_vs_LAMNAG/volcano_C_fbxl5_3.pdf",
+    width = 10, height = 10)
+print(v_C); dev.off()
+png("D:/ASHISH/lams_analysis/new_analysis/conNAG_vs_LAMNAG/volcano_C_fbxl5_3.png",
+    width = 10, height = 10, units = "in", res = 600)
+print(v_C); dev.off()
+cat("✅ Volcano C saved\n")
+
+# ══════════════════════════════════════════════════════════════════════════════
+# COMPARISON D — conVEH vs conNAG
+# ══════════════════════════════════════════════════════════════════════════════
+v_D <- make_fbxl5_volcano(
+  res_conVEH_vs_conNAG,
+  title    = "conVEH vs conNAG",
+  subtitle = "NAG effect in Con macrophages"
+)
+pdf("D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/volcano_D_fbxl5_3.pdf",
+    width = 10, height = 10)
+print(v_D); dev.off()
+png("D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/volcano_D_fbxl5_3.png",
+    width = 10, height = 10, units = "in", res = 600)
+print(v_D); dev.off()
+cat("✅ Volcano D saved\n")
+
+v_A
+v_B
+v_C
+v_D
+cat("\n✅ All 4 Fbxl5-marked volcano plots complete.\n")
+```
+
+# imp volcano with the gene in subtitle
+```{r}
+library(DESeq2)
+library(EnhancedVolcano)
+library(ggplot2)
+library(dplyr)
+
+# =========================================================
+# PARAMETERS
+# =========================================================
+FC_CUT   <- 1
+FDR_CUT  <- 0.05
+LABEL_GENE <- "Fbxl5"   # <- change this to any gene you want
+
+# =========================================================
+# FUNCTION
+# =========================================================
+make_single_gene_volcano <- function(
+    res,
+    title,
+    subtitle = "",
+    label_gene = LABEL_GENE,
+    fc_cut   = FC_CUT,
+    fdr_cut  = FDR_CUT
+) {
+
+  df <- as.data.frame(res) %>%
+    mutate(gene = rownames(.)) %>%
+    filter(!is.na(log2FoldChange),
+           !is.na(padj))
+
+  # label only ONE gene
+  select_labels <- label_gene
+
+  # counts
+  n_up <- sum(df$padj < fdr_cut &
+                df$log2FoldChange > fc_cut,
+              na.rm = TRUE)
+
+  n_down <- sum(df$padj < fdr_cut &
+                  df$log2FoldChange < -fc_cut,
+                na.rm = TRUE)
+
+  # symmetric x-axis
+  x_lim <- ceiling(max(abs(df$log2FoldChange),
+                       na.rm = TRUE)) + 1
+
+  p <- EnhancedVolcano(
+    df,
+
+    # data columns
+    lab       = df$gene,
+    x         = "log2FoldChange",
+    y         = "padj",
+
+    # ONLY this gene will be labeled
+    selectLab = select_labels,
+
+    # titles
+    title     = title,
+    subtitle  = subtitle,
+
+    caption = paste0(
+      "Threshold: |log2FC| > ", fc_cut,
+      " | padj < ", fdr_cut,
+      "\nUpregulated: ", n_up,
+      "    Downregulated: ", n_down
+    ),
+
+    # thresholds
+    pCutoff   = fdr_cut,
+    FCcutoff  = fc_cut,
+
+    # appearance
+    pointSize = 2.3,
+    labSize   = 5,
+
+    colAlpha  = 0.85,
+
+    # colors:
+    # NS, FC, pvalue, both
+    col = c("grey75",
+            "royalblue",
+            "forestgreen",
+            "red2"),
+
+    # label styling
+    boxedLabels      = TRUE,
+    drawConnectors   = TRUE,
+    widthConnectors  = 0.5,
+    colConnectors    = "black",
+
+    # prevent clutter
+    max.overlaps = Inf,
+
+    # legend
+    legendPosition = "top",
+
+    legendLabels = c(
+      "NS",
+      expression(Log[2]~FC),
+      "Adjusted p-value",
+      expression(Adjusted~p-value~and~Log[2]~FC)
+    ),
+
+    # remove grid
+    gridlines.major = FALSE,
+    gridlines.minor = FALSE,
+
+    # borders
+    border         = "full",
+    borderWidth    = 0.8,
+    borderColour   = "black",
+
+    # cutoff lines
+    cutoffLineType  = "dashed",
+    cutoffLineWidth = 0.7,
+    cutoffLineCol   = "black",
+
+    # axes
+    xlim = c(-x_lim, x_lim),
+
+    xlab = bquote(Log[2]~"Fold Change"),
+
+    # text sizes
+    titleLabSize    = 20,
+    subtitleLabSize = 13,
+    captionLabSize  = 11
+  ) +
+
+    theme_bw(base_size = 14) +
+
+    theme(
+      plot.title = element_text(
+        face = "bold",
+        hjust = 0.5,
+        size = 20
+      ),
+
+      plot.subtitle = element_text(
+        hjust = 0.5,
+        color = "grey30"
+      ),
+
+      plot.caption = element_text(
+        hjust = 0.5,
+        face = "bold"
+      ),
+
+      legend.position = "top",
+      legend.title = element_blank(),
+
+      axis.title = element_text(
+        face = "bold",
+        size = 16
+      ),
+
+      axis.text = element_text(
+        size = 12,
+        color = "black"
+      ),
+
+      panel.grid = element_blank(),
+
+      panel.border = element_rect(
+        colour = "black",
+        fill = NA,
+        linewidth = 0.8
+      )
+    )
+
+  return(p)
+}
+
+# =========================================================
+# EXAMPLE
+# =========================================================
+
+v_B <- make_single_gene_volcano(
+  res_conVEH_vs_LAMVEH,
+  title      = "conVEH vs LAMVEH",
+  subtitle   = "Baseline LAM vs Con transcriptional signature",
+  label_gene = "Fbxl5"
+)
+
+# display
+v_B
+
+# save PDF
+pdf(
+  "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_LAMVEH/volcano_single_gene.pdf",
+  width = 10,
+  height = 10
+)
+
+print(v_B)
+dev.off()
+
+# save PNG
+png(
+  "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_LAMVEH/volcano_single_gene.png",
+  width = 10,
+  height = 10,
+  units = "in",
+  res = 600
+)
+
+print(v_B)
+dev.off()
+```
+
+## volcano with gene of interest blue 
+```{r}
+library(DESeq2)
+library(EnhancedVolcano)
+library(ggplot2)
+library(dplyr)
+
+# =========================================================
+# PARAMETERS
+# =========================================================
+FC_CUT    <- 1
+FDR_CUT   <- 0.05
+LABEL_GENE <- "Fbxl5"     # <- gene to highlight
+
+# =========================================================
+# FUNCTION
+# =========================================================
+make_single_gene_volcano <- function(
+    res,
+    title,
+    subtitle = "",
+    label_gene = LABEL_GENE,
+    fc_cut  = FC_CUT,
+    fdr_cut = FDR_CUT
+) {
+
+  # -------------------------------------------------------
+  # Prepare dataframe
+  # -------------------------------------------------------
+  df <- as.data.frame(res) %>%
+    mutate(gene = rownames(.)) %>%
+    filter(!is.na(log2FoldChange),
+           !is.na(padj))
+
+  # -------------------------------------------------------
+  # Counts
+  # -------------------------------------------------------
+  n_up <- sum(
+    df$padj < fdr_cut &
+    df$log2FoldChange > fc_cut,
+    na.rm = TRUE
+  )
+
+  n_down <- sum(
+    df$padj < fdr_cut &
+    df$log2FoldChange < -fc_cut,
+    na.rm = TRUE
+  )
+
+  # -------------------------------------------------------
+  # Axis limit
+  # -------------------------------------------------------
+  x_lim <- ceiling(
+    max(abs(df$log2FoldChange),
+        na.rm = TRUE)
+  ) + 1
+
+  # -------------------------------------------------------
+  # Custom colors
+  # -------------------------------------------------------
+  keyvals <- ifelse(
+    df$gene == label_gene,
+    "blue",
+
+    ifelse(
+      df$padj < fdr_cut &
+      abs(df$log2FoldChange) > fc_cut,
+      "red2",
+      "grey75"
+    )
+  )
+
+  names(keyvals)[keyvals == "blue"]   <- "Gene of interest"
+  names(keyvals)[keyvals == "red2"]   <- "Significant"
+  names(keyvals)[keyvals == "grey75"] <- "NS"
+
+  # -------------------------------------------------------
+  # Volcano
+  # -------------------------------------------------------
+  p <- EnhancedVolcano(
+    df,
+
+    lab = df$gene,
+
+    selectLab = label_gene,
+
+    x = "log2FoldChange",
+    y = "padj",
+
+    title = title,
+    subtitle = subtitle,
+
+    caption = paste0(
+      "Threshold: |log2FC| > ",
+      fc_cut,
+      " | padj < ",
+      fdr_cut,
+      "\nUpregulated: ",
+      n_up,
+      "    Downregulated: ",
+      n_down
+    ),
+
+    pCutoff = fdr_cut,
+    FCcutoff = fc_cut,
+
+    pointSize = 2.5,
+    labSize = 5,
+
+    colCustom = keyvals,
+
+    colAlpha = 0.9,
+
+    boxedLabels = TRUE,
+
+    drawConnectors = TRUE,
+    widthConnectors = 0.5,
+    colConnectors = "black",
+
+    max.overlaps = Inf,
+
+    legendPosition = "top",
+
+    gridlines.major = FALSE,
+    gridlines.minor = FALSE,
+
+    border = "full",
+    borderWidth = 0.8,
+    borderColour = "black",
+
+    cutoffLineType = "dashed",
+    cutoffLineWidth = 0.7,
+    cutoffLineCol = "black",
+
+    xlim = c(-x_lim, x_lim),
+
+    xlab = bquote(Log[2]~"Fold Change"),
+
+    titleLabSize = 20,
+    subtitleLabSize = 13,
+    captionLabSize = 11
+  ) +
+
+    theme_bw(base_size = 14) +
+
+    theme(
+      plot.title = element_text(
+        face = "bold",
+        hjust = 0.5,
+        size = 20
+      ),
+
+      plot.subtitle = element_text(
+        hjust = 0.5,
+        color = "grey30"
+      ),
+
+      plot.caption = element_text(
+        hjust = 0.5,
+        face = "bold"
+      ),
+
+      legend.position = "top",
+
+      legend.title = element_blank(),
+
+      axis.title = element_text(
+        face = "bold",
+        size = 16
+      ),
+
+      axis.text = element_text(
+        size = 12,
+        color = "black"
+      ),
+
+      panel.grid = element_blank(),
+
+      panel.border = element_rect(
+        colour = "black",
+        fill = NA,
+        linewidth = 0.8
+      )
+    )
+
+  return(p)
+}
+
+# =========================================================
+# A — LAMVEH vs LAMNAG
+# =========================================================
+v_A <- make_single_gene_volcano(
+  res_LAMVEH_vs_LAMNAG,
+  title      = "LAMVEH vs LAMNAG",
+  subtitle   = "NAG effect in LAM macrophages",
+  label_gene = "Fbxl5"
+)
+
+pdf(
+  "D:/ASHISH/lams_analysis/new_analysis/LAMVEH_vs_LAMNAG/volcano_A.pdf",
+  width = 10,
+  height = 10
+)
+print(v_A)
+dev.off()
+
+png(
+  "D:/ASHISH/lams_analysis/new_analysis/LAMVEH_vs_LAMNAG/volcano_A.png",
+  width = 10,
+  height = 10,
+  units = "in",
+  res = 600
+)
+print(v_A)
+dev.off()
+
+cat(" Volcano A saved\n")
+
+# =========================================================
+# B — conVEH vs LAMVEH
+# =========================================================
+v_B <- make_single_gene_volcano(
+  res_conVEH_vs_LAMVEH,
+  title      = "conVEH vs LAMVEH",
+  subtitle   = "Baseline LAM vs Con transcriptional signature",
+  label_gene = "Fbxl5"
+)
+
+pdf(
+  "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_LAMVEH/volcano_B.pdf",
+  width = 10,
+  height = 10
+)
+print(v_B)
+dev.off()
+
+png(
+  "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_LAMVEH/volcano_B.png",
+  width = 10,
+  height = 10,
+  units = "in",
+  res = 600
+)
+print(v_B)
+dev.off()
+
+cat("Volcano B saved\n")
+
+# =========================================================
+# C — conNAG vs LAMNAG
+# =========================================================
+v_C <- make_single_gene_volcano(
+  res_conNAG_vs_LAMNAG,
+  title      = "conNAG vs LAMNAG",
+  subtitle   = "LAM vs Con identity after NAG treatment",
+  label_gene = "Fbxl5"
+)
+
+pdf(
+  "D:/ASHISH/lams_analysis/new_analysis/conNAG_vs_LAMNAG/volcano_C.pdf",
+  width = 10,
+  height = 10
+)
+print(v_C)
+dev.off()
+
+png(
+  "D:/ASHISH/lams_analysis/new_analysis/conNAG_vs_LAMNAG/volcano_C.png",
+  width = 10,
+  height = 10,
+  units = "in",
+  res = 600
+)
+print(v_C)
+dev.off()
+
+cat("Volcano C saved\n")
+
+# =========================================================
+# D — conVEH vs conNAG
+# =========================================================
+v_D <- make_single_gene_volcano(
+  res_conVEH_vs_conNAG,
+  title      = "conVEH vs conNAG",
+  subtitle   = "NAG effect in Con macrophages",
+  label_gene = "Fbxl5"
+)
+
+pdf(
+  "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/volcano_D.pdf",
+  width = 10,
+  height = 10
+)
+print(v_D)
+dev.off()
+
+png(
+  "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/volcano_D.png",
+  width = 10,
+  height = 10,
+  units = "in",
+  res = 600
+)
+print(v_D)
+dev.off()
+
+cat("Volcano D saved\n")
+
+# =========================================================
+# DISPLAY
+# =========================================================
+v_A
+v_B
+v_C
+v_D
+
+cat("\n All volcano plots generated successfully.\n")
+```
+
+
+```{r}
+
+library(DESeq2)
+library(EnhancedVolcano)
+library(ggplot2)
+library(dplyr)
+library(grid)
+
+# =========================================================
+# PARAMETERS
+# =========================================================
+FC_CUT  <- 1
+FDR_CUT <- 0.05
+
+# =========================================================
+# FUNCTION
+# =========================================================
+make_pub_volcano <- function(
+    res,
+    title,
+    subtitle = "",
+    highlight_gene = "Fbxl5",
+    fc_cut = FC_CUT,
+    fdr_cut = FDR_CUT
+){
+
+  # =======================================================
+  # DATA
+  # =======================================================
+  df <- as.data.frame(res) %>%
+    mutate(gene = rownames(.)) %>%
+    filter(
+      !is.na(log2FoldChange),
+      !is.na(padj)
+    )
+
+  # cap extreme p-values
+  df$padj[df$padj < 1e-300] <- 1e-300
+
+  # =======================================================
+  # COUNTS
+  # =======================================================
+  n_up <- sum(
+    df$padj < fdr_cut &
+      df$log2FoldChange > fc_cut
+  )
+
+  n_down <- sum(
+    df$padj < fdr_cut &
+      df$log2FoldChange < -fc_cut
+  )
+
+  # =======================================================
+  # AXIS
+  # =======================================================
+  x_lim <- ceiling(
+    max(abs(df$log2FoldChange))
+  ) + 1
+
+  # =======================================================
+  # COLORS
+  # =======================================================
+  keyvals <- rep("grey80", nrow(df))
+
+  # significant genes
+  keyvals[
+    df$padj < fdr_cut &
+      abs(df$log2FoldChange) > fc_cut
+  ] <- "firebrick2"
+
+  # highlighted gene
+  keyvals[df$gene == highlight_gene] <- "#1565C0"
+
+  names(keyvals) <- rep("NS", length(keyvals))
+
+  names(keyvals)[
+    keyvals == "firebrick2"
+  ] <- "Significant"
+
+  names(keyvals)[
+    keyvals == "#1565C0"
+  ] <- highlight_gene
+
+  # =======================================================
+  # POINT SIZES
+  # =======================================================
+  point_sizes <- rep(1.8, nrow(df))
+
+  point_sizes[
+    df$padj < fdr_cut &
+      abs(df$log2FoldChange) > fc_cut
+  ] <- 2.2
+
+  point_sizes[
+    df$gene == highlight_gene
+  ] <- 5
+
+  # =======================================================
+  # LABELS
+  # =======================================================
+  custom_lab <- ifelse(
+    df$gene == highlight_gene,
+    highlight_gene,
+    ""
+  )
+
+  # =======================================================
+  # PLOT
+  # =======================================================
+  p <- EnhancedVolcano(
+    df,
+
+    lab = custom_lab,
+
+    selectLab = highlight_gene,
+
+    x = "log2FoldChange",
+    y = "padj",
+
+    title = title,
+    subtitle = subtitle,
+
+    pCutoff = fdr_cut,
+    FCcutoff = fc_cut,
+
+    colCustom = keyvals,
+
+    pointSize = point_sizes,
+
+    labSize = 5,
+
+    boxedLabels = TRUE,
+
+    drawConnectors = TRUE,
+
+    widthConnectors = 0.7,
+
+    colConnectors = "#1565C0",
+
+    endsConnectors = "first",
+
+    max.overlaps = Inf,
+
+    colAlpha = 0.9,
+
+    legendPosition = "none",
+
+    gridlines.major = FALSE,
+    gridlines.minor = FALSE,
+
+    cutoffLineType = "dashed",
+    cutoffLineCol = "black",
+    cutoffLineWidth = 0.5,
+
+    border = "full",
+    borderWidth = 0.8,
+    borderColour = "black",
+
+    xlim = c(-x_lim, x_lim),
+
+    xlab = expression(Log[2]~Fold~Change),
+
+    titleLabSize = 20,
+    subtitleLabSize = 12,
+
+    caption = paste0(
+      "Upregulated: ",
+      n_up,
+      "   |   Downregulated: ",
+      n_down
+    ),
+
+    captionLabSize = 11
+  ) +
+
+    theme_bw(base_size = 14) +
+
+    theme(
+
+      plot.title = element_text(
+        face = "bold",
+        size = 20,
+        hjust = 0.5
+      ),
+
+      plot.subtitle = element_text(
+        size = 12,
+        hjust = 0.5,
+        colour = "grey30"
+      ),
+
+      plot.caption = element_text(
+        size = 11,
+        face = "plain",
+        hjust = 0.5,
+        colour = "black"
+      ),
+
+      axis.title = element_text(
+        face = "bold",
+        size = 16
+      ),
+
+      axis.text = element_text(
+        size = 12,
+        colour = "black"
+      ),
+
+      panel.grid = element_blank(),
+
+      panel.border = element_rect(
+        colour = "black",
+        linewidth = 0.8,
+        fill = NA
+      ),
+
+      plot.margin = margin(
+        15,
+        15,
+        15,
+        15
+      )
+    )
+
+  return(p)
+}
+
+# =========================================================
+# A — LAMVEH vs LAMNAG
+# =========================================================
+v_A <- make_pub_volcano(
+  res_LAMVEH_vs_LAMNAG,
+  title = "LAMVEH vs LAMNAG",
+  subtitle = "NAG effect in LAM macrophages"
+)
+
+# =========================================================
+# B — conVEH vs LAMVEH
+# =========================================================
+v_B <- make_pub_volcano(
+  res_conVEH_vs_LAMVEH,
+  title = "conVEH vs LAMVEH",
+  subtitle = "Baseline LAM vs Con transcriptional signature"
+)
+
+# =========================================================
+# C — conNAG vs LAMNAG
+# =========================================================
+v_C <- make_pub_volcano(
+  res_conNAG_vs_LAMNAG,
+  title = "conNAG vs LAMNAG",
+  subtitle = "LAM vs Con identity after NAG treatment"
+)
+
+# =========================================================
+# D — conVEH vs conNAG
+# =========================================================
+v_D <- make_pub_volcano(
+  res_conVEH_vs_conNAG,
+  title = "conVEH vs conNAG",
+  subtitle = "NAG effect in Con macrophages"
+)
+
+# =========================================================
+# SAVE
+# =========================================================
+
+ggsave(
+  "volcano_A_publication.png",
+  v_A,
+  width = 10,
+  height = 10,
+  dpi = 600
+)
+
+ggsave(
+  "volcano_B_publication.png",
+  v_B,
+  width = 10,
+  height = 10,
+  dpi = 600
+)
+
+ggsave(
+  "volcano_C_publication.png",
+  v_C,
+  width = 10,
+  height = 10,
+  dpi = 600
+)
+
+ggsave(
+  "volcano_D_publication.png",
+  v_D,
+  width = 10,
+  height = 10,
+  dpi = 600
+)
+
+# =========================================================
+# DISPLAY
+# =========================================================
+
+v_A
+v_B
+v_C
+v_D
+```
+
+```{r}
+library(DESeq2)
+library(EnhancedVolcano)
+library(ggplot2)
+library(dplyr)
+library(grid)
+
+# =========================================================
+# PARAMETERS
+# =========================================================
+FC_CUT  <- 1
+FDR_CUT <- 0.05
+
+# =========================================================
+# FUNCTION
+# =========================================================
+make_pub_volcano <- function(
+    res,
+    title,
+    subtitle = "",
+    highlight_gene = "Fbxl5",
+    fc_cut = FC_CUT,
+    fdr_cut = FDR_CUT
+){
+
+  # =======================================================
+  # DATA
+  # =======================================================
+  df <- as.data.frame(res) %>%
+    mutate(gene = rownames(.)) %>%
+    filter(
+      !is.na(log2FoldChange),
+      !is.na(padj)
+    )
+
+  # avoid Inf values
+  df$padj[df$padj < 1e-300] <- 1e-300
+
+  # =======================================================
+  # COUNTS
+  # =======================================================
+  n_up <- sum(
+    df$padj < fdr_cut &
+      df$log2FoldChange > fc_cut
+  )
+
+  n_down <- sum(
+    df$padj < fdr_cut &
+      df$log2FoldChange < -fc_cut
+  )
+
+  # =======================================================
+  # FIXED AXIS FOR ALL PANELS
+  # =======================================================
+  x_lim <- 12
+
+  # =======================================================
+  # COLORS
+  # =======================================================
+  keyvals <- rep("grey85", nrow(df))
+
+  # significant genes
+  keyvals[
+    df$padj < fdr_cut &
+      abs(df$log2FoldChange) > fc_cut
+  ] <- "#E57373"
+
+  # highlighted gene
+  keyvals[
+    df$gene == highlight_gene
+  ] <- "blue"
+
+  names(keyvals) <- rep("NS", length(keyvals))
+
+  names(keyvals)[
+    keyvals == "#E57373"
+  ] <- "Significant"
+
+  names(keyvals)[
+    keyvals == "blue"
+  ] <- highlight_gene
+
+  # =======================================================
+  # POINT SIZE
+  # =======================================================
+  point_sizes <- rep(1.5, nrow(df))
+
+  point_sizes[
+    df$padj < fdr_cut &
+      abs(df$log2FoldChange) > fc_cut
+  ] <- 2
+
+  point_sizes[
+    df$gene == highlight_gene
+  ] <- 5
+
+  # =======================================================
+  # LABEL
+  # =======================================================
+  custom_lab <- ifelse(
+    df$gene == highlight_gene,
+    highlight_gene,
+    ""
+  )
+
+  # =======================================================
+  # PLOT
+  # =======================================================
+  p <- EnhancedVolcano(
+
+    df,
+
+    lab = custom_lab,
+
+    selectLab = highlight_gene,
+
+    x = "log2FoldChange",
+    y = "padj",
+
+    title = title,
+    subtitle = subtitle,
+
+    pCutoff = fdr_cut,
+    FCcutoff = fc_cut,
+
+    colCustom = keyvals,
+
+    pointSize = point_sizes,
+
+    colAlpha = 0.85,
+
+    shape = 16,
+
+    labSize = 5,
+
+    boxedLabels = TRUE,
+
+    drawConnectors = TRUE,
+
+    widthConnectors = 0.8,
+
+    colConnectors = "blue",
+
+    endsConnectors = "last",
+
+    max.overlaps = Inf,
+
+    legendPosition = "right",
+
+    legendLabels = c(
+      "NS",
+      "Significant",
+      highlight_gene
+    ),
+
+    legendLabSize = 12,
+
+    gridlines.major = FALSE,
+    gridlines.minor = FALSE,
+
+    cutoffLineType = "dashed",
+    cutoffLineWidth = 0.5,
+    cutoffLineCol = "grey30",
+
+    border = "full",
+    borderWidth = 0.8,
+    borderColour = "black",
+
+    xlim = c(-x_lim, x_lim),
+
+    ylim = c(0, 320),
+
+    xlab = expression(Log[2]~Fold~Change),
+
+    ylab = expression(-Log[10]~italic(P)),
+
+    titleLabSize = 20,
+    subtitleLabSize = 12,
+    captionLabSize = 11,
+
+    caption = paste0(
+      "Upregulated: ",
+      n_up,
+      "   |   Downregulated: ",
+      n_down
+    )
+  ) +
+
+    labs(colour = NULL) +
+
+    theme_bw(base_size = 14) +
+
+    theme(
+
+      # background
+      panel.grid = element_blank(),
+
+      panel.border = element_rect(
+        colour = "black",
+        linewidth = 0.8,
+        fill = NA
+      ),
+
+      # titles
+      plot.title = element_text(
+        face = "bold",
+        size = 20,
+        hjust = 0.5
+      ),
+
+      plot.subtitle = element_text(
+        size = 12,
+        hjust = 0.5,
+        colour = "grey30"
+      ),
+
+      plot.caption = element_text(
+        size = 11,
+        hjust = 0.5,
+        colour = "black"
+      ),
+
+      # axes
+      axis.title = element_text(
+        face = "bold",
+        size = 17
+      ),
+
+      axis.text = element_text(
+        size = 12,
+        colour = "black"
+      ),
+
+      axis.ticks = element_line(
+        colour = "black",
+        linewidth = 0.6
+      ),
+
+      # legend
+      legend.title = element_blank(),
+
+      legend.position = "right",
+
+      legend.text = element_text(
+        size = 11
+      ),
+
+      # spacing
+      plot.margin = margin(
+        15,
+        15,
+        15,
+        15
+      )
+    )
+
+  return(p)
+}
+
+# =========================================================
+# A — LAMVEH vs LAMNAG
+# =========================================================
+v_A <- make_pub_volcano(
+  res_LAMVEH_vs_LAMNAG,
+  title = "LAMVEH vs LAMNAG",
+  subtitle = "NAG effect in LAM macrophages"
+)
+
+# =========================================================
+# B — conVEH vs LAMVEH
+# =========================================================
+v_B <- make_pub_volcano(
+  res_conVEH_vs_LAMVEH,
+  title = "conVEH vs LAMVEH",
+  subtitle = "Baseline LAM vs Con transcriptional signature"
+)
+
+# =========================================================
+# C — conNAG vs LAMNAG
+# =========================================================
+v_C <- make_pub_volcano(
+  res_conNAG_vs_LAMNAG,
+  title = "conNAG vs LAMNAG",
+  subtitle = "LAM vs Con identity after NAG treatment"
+)
+
+# =========================================================
+# D — conVEH vs conNAG
+# =========================================================
+v_D <- make_pub_volcano(
+  res_conVEH_vs_conNAG,
+  title = "conVEH vs conNAG",
+  subtitle = "NAG effect in Con macrophages"
+)
+
+# =========================================================
+# SAVE
+# =========================================================
+
+ggsave(
+  "volcano_A_publication_1.pdf",
+  v_A,
+  width = 8,
+  height = 8
+)
+
+ggsave(
+  "volcano_B_publication_1.pdf",
+  v_B,
+  width = 8,
+  height = 8
+)
+
+ggsave(
+  "volcano_C_publication_1.pdf",
+  v_C,
+  width = 8,
+  height = 8
+)
+
+ggsave(
+  "volcano_D_publication_1.pdf",
+  v_D,
+  width = 8,
+  height = 8
+)
+
+ggsave(
+  "volcano_A_publication_1.png",
+  v_A,
+  width = 8,
+  height = 8,
+  dpi = 600
+)
+
+ggsave(
+  "volcano_B_publication_1.png",
+  v_B,
+  width = 8,
+  height = 8,
+  dpi = 600
+)
+
+ggsave(
+  "volcano_C_publication_1.png",
+  v_C,
+  width = 8,
+  height = 8,
+  dpi = 600
+)
+
+ggsave(
+  "volcano_D_publication_1.png",
+  v_D,
+  width = 8,
+  height = 8,
+  dpi = 600
+)
+
+# =========================================================
+# DISPLAY
+# =========================================================
+v_A
+v_B
+v_C
+v_D
+
+cat("\n✅ Publication-quality volcano plots generated.\n")
+```
+
+
+```{r}
+library(DESeq2)
+library(EnhancedVolcano)
+library(ggplot2)
+library(dplyr)
+library(grid)
+
+# =========================================================
+# PARAMETERS
+# =========================================================
+FC_CUT  <- 1
+FDR_CUT <- 0.05
+
+# =========================================================
+# FUNCTION
+# =========================================================
+make_pub_volcano <- function(
+    res,
+    title,
+    subtitle = "",
+    highlight_gene = "Fbxl5",
+    fc_cut = FC_CUT,
+    fdr_cut = FDR_CUT
+){
+
+  # =======================================================
+  # DATA
+  # =======================================================
+  df <- as.data.frame(res) %>%
+    mutate(gene = rownames(.)) %>%
+    filter(
+      !is.na(log2FoldChange),
+      !is.na(padj)
+    )
+
+  # avoid Inf values
+  df$padj[df$padj < 1e-300] <- 1e-300
+
+  # =======================================================
+  # COUNTS
+  # =======================================================
+  n_up <- sum(
+    df$padj < fdr_cut &
+      df$log2FoldChange > fc_cut
+  )
+
+  n_down <- sum(
+    df$padj < fdr_cut &
+      df$log2FoldChange < -fc_cut
+  )
+
+  # =======================================================
+  # FIXED AXIS FOR ALL PANELS
+  # =======================================================
+  x_lim <- 12
+
+  # =======================================================
+  # COLORS
+  # =======================================================
+  keyvals <- rep("grey85", nrow(df))
+
+  # significant genes
+  keyvals[
+    df$padj < fdr_cut &
+      abs(df$log2FoldChange) > fc_cut
+  ] <- "#E57373"
+
+  # highlighted gene
+  keyvals[
+    df$gene == highlight_gene
+  ] <- "blue"
+
+  names(keyvals) <- rep("NS", length(keyvals))
+
+  names(keyvals)[
+    keyvals == "#E57373"
+  ] <- "Significant"
+
+  names(keyvals)[
+    keyvals == "blue"
+  ] <- highlight_gene
+
+  # =======================================================
+  # POINT SIZE
+  # =======================================================
+  point_sizes <- rep(1.5, nrow(df))
+
+  point_sizes[
+    df$padj < fdr_cut &
+      abs(df$log2FoldChange) > fc_cut
+  ] <- 2
+
+  point_sizes[
+    df$gene == highlight_gene
+  ] <- 5
+
+  # =======================================================
+  # LABEL
+  # =======================================================
+  custom_lab <- ifelse(
+    df$gene == highlight_gene,
+    highlight_gene,
+    ""
+  )
+
+  # =======================================================
+  # PLOT
+  # =======================================================
+  p <- EnhancedVolcano(
+
+    df,
+
+    lab = custom_lab,
+
+    selectLab = highlight_gene,
+
+    x = "log2FoldChange",
+    y = "padj",
+
+    title = title,
+    subtitle = subtitle,
+
+    pCutoff = fdr_cut,
+    FCcutoff = fc_cut,
+
+    colCustom = keyvals,
+
+    pointSize = point_sizes,
+
+    colAlpha = 0.85,
+
+    shape = 16,
+
+    labSize = 5,
+
+    boxedLabels = TRUE,
+
+    drawConnectors = TRUE,
+
+    widthConnectors = 0.8,
+
+    colConnectors = "blue",
+
+    endsConnectors = "last",
+
+    max.overlaps = Inf,
+
+    legendPosition = "right",
+
+    legendLabels = c(
+      "NS",
+      "Significant",
+      highlight_gene
+    ),
+
+    legendLabSize = 12,
+
+    gridlines.major = FALSE,
+    gridlines.minor = FALSE,
+
+    cutoffLineType = "dashed",
+    cutoffLineWidth = 0.5,
+    cutoffLineCol = "grey30",
+
+    border = "full",
+    borderWidth = 0.8,
+    borderColour = "black",
+
+    xlim = c(-x_lim, x_lim),
+
+    ylim = c(0, 320),
+
+    xlab = expression(Log[2]~Fold~Change),
+
+    ylab = expression(-Log[10]~italic(P)),
+
+    titleLabSize = 20,
+    subtitleLabSize = 12,
+    captionLabSize = 11,
+
+    caption = paste0(
+      "Upregulated: ",
+      n_up,
+      "   |   Downregulated: ",
+      n_down
+    )
+  ) +
+
+    labs(colour = NULL) +
+
+    theme_bw(base_size = 14) +
+
+    theme(
+
+      # background
+      panel.grid = element_blank(),
+
+      panel.border = element_rect(
+        colour = "black",
+        linewidth = 0.8,
+        fill = NA
+      ),
+
+      # titles
+      plot.title = element_text(
+        face = "bold",
+        size = 20,
+        hjust = 0.5
+      ),
+
+      plot.subtitle = element_text(
+        size = 12,
+        hjust = 0.5,
+        colour = "grey30"
+      ),
+
+      plot.caption = element_text(
+        size = 11,
+        hjust = 0.5,
+        colour = "black"
+      ),
+
+      # axes
+      axis.title = element_text(
+        face = "bold",
+        size = 17
+      ),
+
+      axis.text = element_text(
+        size = 12,
+        colour = "black"
+      ),
+
+      axis.ticks = element_line(
+        colour = "black",
+        linewidth = 0.6
+      ),
+
+      # legend
+      legend.title = element_blank(),
+
+      legend.position = "right",
+
+      legend.text = element_text(
+        size = 11
+      ),
+
+      # spacing
+      plot.margin = margin(
+        15,
+        15,
+        15,
+        15
+      )
+    )
+
+  return(p)
+}
+
+# =========================================================
+# A — LAMVEH vs LAMNAG
+# =========================================================
+v_A <- make_pub_volcano(
+  res_LAMVEH_vs_LAMNAG,
+  title = "LAMVEH vs LAMNAG",
+  subtitle = "NAG effect in LAM macrophages"
+)
+
+v_A <- v_A + ylim(0, 20)
+
+# =========================================================
+# D — conVEH vs conNAG
+# =========================================================
+v_D <- make_pub_volcano(
+  res_conVEH_vs_conNAG,
+  title = "conVEH vs conNAG",
+  subtitle = "NAG effect in Con macrophages"
+)
+v_D <- v_D + ylim(0, 15)
+# =========================================================
+# SAVE
+# =========================================================
+
+ggsave(
+  "volcano_A_publication_1.pdf",
+  v_A,
+  width = 8,
+  height = 8
+)
+
+
+ggsave(
+  "volcano_D_publication_1.pdf",
+  v_D,
+  width = 8,
+  height = 8
+)
+
+ggsave(
+  "volcano_A_publication_1.png",
+  v_A,
+  width = 8,
+  height = 8,
+  dpi = 600
+)
+
+
+
+ggsave(
+  "volcano_D_publication_1.png",
+  v_D,
+  width = 8,
+  height = 8,
+  dpi = 600
+)
+
+# =========================================================
+# DISPLAY
+# =========================================================
+v_A
+
+v_D
+
+cat("\n Publication-quality volcano plots generated.\n")
+
+```
+
+```{r}
+
+```
+
+
+
+# pathway analysis 
+
+
+
+```{r}
+#BiocManager::install("clusterProfiler")
+#BiocManager::install("pathview")
+#BiocManager::install("enrichplot")
+library(clusterProfiler)
+library(enrichplot)
+
+
+organism = "org.Mm.eg.db"
+BiocManager::install(organism, character.only = TRUE)
+library(organism, character.only = TRUE)
+
+keytypes(org.Mm.eg.db)
+
+install.packages("enrichR")
+library("enrichR")
+
+
+```
+## pathway analysis betn control and lam
+
+
+
+```{r}
+res_conNAG_vs_LAMNAG$gene_name <- rownames(res_conNAG_vs_LAMNAG)
+res_conVEH_vs_conNAG$gene_name <- rownames(res_conVEH_vs_conNAG)
+res_conVEH_vs_LAMVEH$gene_name <- rownames(res_conVEH_vs_LAMVEH)
+res_LAMVEH_vs_LAMNAG$gene_name <- rownames(res_LAMVEH_vs_LAMNAG)
+
+```
+
+
+# between control vs DCZ_2h #upregulated #downregulated
+
+
+
+```{r}
+#ConNAG vs ConVEH
+up.idx_res_A <- which(res_LAMVEH_vs_LAMNAG$padj < 0.05 & res_LAMVEH_vs_LAMNAG$log2FoldChange > 0) #FDR < 0.05 and logFC > 0
+dn.idx_res_A <- which(res_LAMVEH_vs_LAMNAG$padj < 0.05 & res_LAMVEH_vs_LAMNAG$log2FoldChange < 0) # FDR < 0.05 and logFC < 0
+#lamVEH VS conVEH
+up.idx_res_B <- which(res_conVEH_vs_LAMVEH$padj < 0.05 & res_conVEH_vs_LAMVEH$log2FoldChange > 0) #FDR < 0.05 and logFC > 0
+dn.idx_res_B <- which(res_conVEH_vs_LAMVEH$padj < 0.05 & res_conVEH_vs_LAMVEH$log2FoldChange < 0) # FDR < 0.05 and logFC < 0
+#ConVEH VS LAMVEH
+up.idx_res_C <- which(res_conNAG_vs_LAMNAG$padj < 0.05 & res_conNAG_vs_LAMNAG$log2FoldChange > 0) #FDR < 0.05 and logFC > 0
+dn.idx_res_C <- which(res_conNAG_vs_LAMNAG$padj < 0.05 & res_conNAG_vs_LAMNAG$log2FoldChange < 0) # FDR < 0.05 and logFC < 0
+#ConNAG VS LAMNAG
+up.idx_res_D <- which(res_conVEH_vs_conNAG$padj < 0.05 & res_conVEH_vs_conNAG$log2FoldChange > 0) #FDR < 0.05 and logFC > 0
+dn.idx_res_D <- which(res_conVEH_vs_conNAG$padj < 0.05 & res_conVEH_vs_conNAG$log2FoldChange < 0) # FDR < 0.05 and logFC < 0
+```
+
+
+
+
+```{r}
+length(up.idx_res_A)
+length(dn.idx_res_A)
+length(up.idx_res_B)
+length(dn.idx_res_B)
+length(up.idx_res_C)
+length(dn.idx_res_C)
+length(up.idx_res_D)
+length(dn.idx_res_D)
+```
+
+
+
+```{r}
+up.genes_A <- res_LAMVEH_vs_LAMNAG[up.idx_res_A,]$gene_name
+dn.genes_A <- res_LAMVEH_vs_LAMNAG[dn.idx_res_A,]$gene_name
+
+up.genes_B <- res_conVEH_vs_LAMVEH[up.idx_res_B,]$gene_name
+dn.genes_B <- res_conVEH_vs_LAMVEH[dn.idx_res_B,]$gene_name
+
+up.genes_C <- res_conNAG_vs_LAMNAG[up.idx_res_C,]$gene_name
+dn.genes_C <- res_conNAG_vs_LAMNAG[dn.idx_res_C,]$gene_name
+
+up.genes_D <- res_conVEH_vs_conNAG[up.idx_res_D,]$gene_name
+dn.genes_D <- res_conVEH_vs_conNAG[dn.idx_res_D,]$gene_name
+
+head(up.genes_D, 200)
+
+
+head(dn.genes_B, 50)
+```
+
+```{r}
+
+dbs <- listEnrichrDbs()
+dbs <- dbs[order(dbs$libraryName),]
+
+class(dbs)
+
+dim(dbs)
+head(dbs)
+dbs$libraryName
+dbs
+```
+
+## Select databases
+
+
+
+```{r}
+dbs_go <- c("GO_Molecular_Function_2026", "GO_Cellular_Component_2026", "GO_Biological_Process_2026")
+dbs_pw <- c("KEGG_2019_Mouse", "WikiPathways_2024_Mouse", "BioPlanet_2019", "KEGG_2026",
+            "MSigDB_Hallmark_2020", "Mouse_Gene_Atlas", "Reactome_Pathways_2024", "HDSigDB_Mouse_2021")
+
+
+library(clusterProfiler)
+library(org.Mm.eg.db)
+
+keytypes(org.Mm.eg.db)
+
+```
+
+### Perform enrichment analysis
+## GO analysis
+
+
+
+```{r}
+## upregulatiing
+upEnriched_go <- enrichr(genes = up.genes_D, databases = dbs_go)
+
+dnEnriched_go <- enrichr(genes = dn.genes_D, databases = dbs_go)
+
+upEnriched_pw <- enrichr(genes = up.genes_D, databases = dbs_pw)
+
+dnEnriched_pw <- enrichr(genes = dn.genes_D, databases = dbs_pw)
+```
+D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/pathway = D
+D:/ASHISH/lams_analysis/new_analysis/conNAG_vs_LAMNAG/pathway =C
+D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_LAMVEH/pathway =B
+D:/ASHISH/lams_analysis/new_analysis/LAMVEH_vs_LAMNAG/pathway =A
+
+#upregulated
+
+
+
+```{r}
+png(filename = "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/pathway/KEGG_2019_Mouse_upregulated.png",
+    res = 400, units = "in", width = 12, height = 10)
+
+plotEnrich(upEnriched_pw[[1]],
+           showTerms = 25,
+           numChar = 80,
+           y = "Count",
+           orderBy = "Adjusted.P.value") +
+  ggtitle("conVEH_vs_conNAG(upregulated)") +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    axis.text.y = element_text(size = 10),
+    axis.text.x = element_text(size = 10)
+  )
+
+dev.off()
+
+png(filename = "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/pathway/WikiPathways_2024_Mouse_upregulated.png",
+    res = 400, units = "in",width = 12, height = 10)
+
+plotEnrich(upEnriched_pw[[2]],
+           showTerms = 25,
+           numChar = 80,
+           y = "Count",
+           orderBy = "Adjusted.P.value") +
+  ggtitle("conVEH_vs_conNAG(upregulated)") +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    axis.text.y = element_text(size = 10),
+    axis.text.x = element_text(size = 10)
+  )
+
+dev.off()
+
+png(filename = "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/pathway/BioPlanet_2019_upregulated.png",
+    res = 400, units = "in", width = 12, height = 10)
+
+plotEnrich(upEnriched_pw[[3]],
+           showTerms = 25,
+           numChar = 80,
+           y = "Count",
+           orderBy = "Adjusted.P.value") +
+  ggtitle("conVEH_vs_conNAG(upregulated)") +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    axis.text.y = element_text(size = 10),
+    axis.text.x = element_text(size = 10)
+  )
+
+dev.off()
+
+png(filename = "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/pathway/KEGG_2026_upregulated.png",
+    res = 400, units = "in", width = 12, height = 10)
+
+plotEnrich(upEnriched_pw[[4]],
+           showTerms = 25,
+           numChar = 80,
+           y = "Count",
+           orderBy = "Adjusted.P.value") +
+  ggtitle("conVEH_vs_conNAG(upregulated)") +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    axis.text.y = element_text(size = 10),
+    axis.text.x = element_text(size = 10)
+  )
+
+dev.off()
+
+png(filename = "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/pathway/MSigDB_Hallmark_2020_upregulated.png",
+    res = 400, units = "in", width = 12, height = 10)
+
+plotEnrich(upEnriched_pw[[5]],
+           showTerms = 25,
+           numChar = 80,
+           y = "Count",
+           orderBy = "Adjusted.P.value") +
+  ggtitle("conVEH_vs_conNAG(upregulated)") +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    axis.text.y = element_text(size = 10),
+    axis.text.x = element_text(size = 10)
+  )
+
+dev.off()
+
+png(filename = "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/pathway/Mouse_Gene_Atlas_upregulated.png",
+    res = 400, units = "in", width = 12, height = 10)
+
+plotEnrich(upEnriched_pw[[6]],
+           showTerms = 25,
+           numChar = 80,
+           y = "Count",
+           orderBy = "Adjusted.P.value") +
+  ggtitle("conVEH_vs_conNAG(upregulated)") +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    axis.text.y = element_text(size = 10),
+    axis.text.x = element_text(size = 10)
+  )
+
+dev.off()
+
+png(filename = "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/pathway/Reactome_Pathways_2024_upregulated.png",
+    res = 400, units = "in", width = 12, height = 10)
+
+plotEnrich(upEnriched_pw[[7]],
+           showTerms = 25,
+           numChar = 80,
+           y = "Count",
+           orderBy = "Adjusted.P.value") +
+  ggtitle("conVEH_vs_conNAG(upregulated)") +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    axis.text.y = element_text(size = 10),
+    axis.text.x = element_text(size = 10)
+  )
+
+dev.off()
+
+png(filename = "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/pathway/HDSigDB_Mouse_2021_upregulated.png",
+    res = 400, units = "in", width = 12, height = 10)
+
+plotEnrich(upEnriched_pw[[8]],
+           showTerms = 25,
+           numChar = 80,
+           y = "Count",
+           orderBy = "Adjusted.P.value") +
+  ggtitle("conVEH_vs_conNAG(upregulated)") +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    axis.text.y = element_text(size = 10),
+    axis.text.x = element_text(size = 10)
+  )
+
+dev.off()
+
+# downregulated
+
+png(filename = "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/pathway/KEGG_2019_Mouse_downregulated.png",
+    res = 400, units = "in", width = 12, height = 10)
+
+plotEnrich(dnEnriched_pw[[1]],
+           showTerms = 25,
+           numChar = 80,
+           y = "Count",
+           orderBy = "Adjusted.P.value") +
+  ggtitle("conVEH_vs_conNAG(downregulated)") +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    axis.text.y = element_text(size = 10),
+    axis.text.x = element_text(size = 10)
+  )
+
+dev.off()
+
+png(filename = "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/pathway/WikiPathways_2024_Mouse_downregulated.png",
+    res = 400, units = "in", width = 12, height = 10)
+
+plotEnrich(dnEnriched_pw[[2]],
+           showTerms = 25,
+           numChar = 80,
+           y = "Count",
+           orderBy = "Adjusted.P.value") +
+  ggtitle("conVEH_vs_conNAG(downregulated)") +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    axis.text.y = element_text(size = 10),
+    axis.text.x = element_text(size = 10)
+  )
+
+dev.off()
+
+png(filename = "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/pathway/BioPlanet_2019_downregulated.png",
+    res = 400, units = "in", width = 12, height = 10)
+
+plotEnrich(dnEnriched_pw[[3]],
+           showTerms = 25,
+           numChar = 80,
+           y = "Count",
+           orderBy = "Adjusted.P.value") +
+  ggtitle("conVEH_vs_conNAG(downregulated)") +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    axis.text.y = element_text(size = 10),
+    axis.text.x = element_text(size = 10)
+  )
+
+dev.off()
+
+png(filename = "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/pathway/KEGG_2026_downregulated.png",
+    res = 400, units = "in", width = 12, height = 10)
+
+plotEnrich(dnEnriched_pw[[4]],
+           showTerms = 25,
+           numChar = 80,
+           y = "Count",
+           orderBy = "Adjusted.P.value") +
+  ggtitle("conVEH_vs_conNAG(downregulated)") +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    axis.text.y = element_text(size = 10),
+    axis.text.x = element_text(size = 10)
+  )
+
+dev.off()
+
+png(filename = "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/pathway/MSigDB_Hallmark_2020_downregulated.png",
+    res = 400, units = "in", width = 12, height = 10)
+
+plotEnrich(dnEnriched_pw[[5]],
+           showTerms = 25,
+           numChar = 80,
+           y = "Count",
+           orderBy = "Adjusted.P.value") +
+  ggtitle("conVEH_vs_conNAG(downregulated)") +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    axis.text.y = element_text(size = 10),
+    axis.text.x = element_text(size = 10)
+  )
+
+dev.off()
+
+png(filename = "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/pathway/Mouse_Gene_Atlas_downregulated.png",
+    res = 400, units = "in", width = 12, height = 10)
+
+plotEnrich(dnEnriched_pw[[6]],
+           showTerms = 25,
+           numChar = 80,
+           y = "Count",
+           orderBy = "Adjusted.P.value") +
+  ggtitle("conVEH_vs_conNAG(downregulated)") +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    axis.text.y = element_text(size = 10),
+    axis.text.x = element_text(size = 10)
+  )
+
+dev.off()
+
+png(filename = "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/pathway/Reactome_Pathways_2024_downregulated.png",
+    res = 400, units = "in", width = 12, height = 10)
+
+plotEnrich(dnEnriched_pw[[7]],
+           showTerms = 25,
+           numChar = 80,
+           y = "Count",
+           orderBy = "Adjusted.P.value") +
+  ggtitle("conVEH_vs_conNAG(downregulated)") +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    axis.text.y = element_text(size = 10),
+    axis.text.x = element_text(size = 10)
+  )
+
+dev.off()
+
+png(filename = "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/pathway/HDSigDB_Mouse_2021_downregulated.png",
+    res = 400, units = "in", width = 12, height = 10)
+
+plotEnrich(dnEnriched_pw[[8]],
+           showTerms = 25,
+           numChar = 80,
+           y = "Count",
+           orderBy = "Adjusted.P.value") +
+  ggtitle("conVEH_vs_conNAG(downregulated)") +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    axis.text.y = element_text(size = 10),
+    axis.text.x = element_text(size = 10)
+  )
+
+dev.off()
+```
+
+
+
+#go pathway
+GO_Molecular_Function_2025 
+  Querying GO_Cellular_Component_2025
+  Querying GO_Biological_Process_202
+
+
+```{r}
+png(filename = "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/pathway/GO_Molecular_Function_2026_upregulated.png",
+    res = 400, units = "in",width = 12, height = 10)
+
+plotEnrich(upEnriched_go[[1]],
+           showTerms = 25,
+           numChar = 80,
+           y = "Count",
+           orderBy = "Adjusted.P.value") +
+  ggtitle("conVEH_vs_conNAG(upregulated)") +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    axis.text.y = element_text(size = 10),
+    axis.text.x = element_text(size = 10)
+  )
+dev.off()
+
+png(filename = "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/pathway/GO_Cellular_Component_2026_upregulated.png",
+    res = 400, units = "in", width = 12, height = 10)
+
+plotEnrich(upEnriched_go[[2]],
+           showTerms = 25,
+           numChar = 80,
+           y = "Count",
+           orderBy = "Adjusted.P.value") +
+  ggtitle("conVEH_vs_conNAG(upregulated)") +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    axis.text.y = element_text(size = 10),
+    axis.text.x = element_text(size = 10)
+  )
+dev.off()
+
+png(filename = "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/pathway/GO_Biological_Process_2026_upregulated.png",
+    res = 400, units = "in",width = 12, height = 10)
+
+plotEnrich(upEnriched_go[[3]],
+           showTerms = 25,
+           numChar = 80,
+           y = "Count",
+           orderBy = "Adjusted.P.value") +
+  ggtitle("conVEH_vs_conNAG(upregulated)") +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    axis.text.y = element_text(size = 10),
+    axis.text.x = element_text(size = 10)
+  )
+dev.off()
+
+
+#downregulation
+png(filename = "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/pathway/GO_Molecular_Function_2026_downregulated.png",
+    res = 400, units = "in", width = 12, height = 10)
+
+plotEnrich(dnEnriched_go[[1]],
+           showTerms = 25,
+           numChar = 80,
+           y = "Count",
+           orderBy = "Adjusted.P.value") +
+  ggtitle("conVEH_vs_conNAG(downregulated)") +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    axis.text.y = element_text(size = 10),
+    axis.text.x = element_text(size = 10)
+  )
+dev.off()
+
+png(filename = "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/pathway/GO_Cellular_Component_2026_downregulated.png",
+    res = 400, units = "in",width = 12, height = 10)
+
+plotEnrich(dnEnriched_go[[2]],
+           showTerms = 25,
+           numChar = 80,
+           y = "Count",
+           orderBy = "Adjusted.P.value") +
+  ggtitle("conVEH_vs_conNAG(downregulated)") +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    axis.text.y = element_text(size = 10),
+    axis.text.x = element_text(size = 10)
+  )
+dev.off()
+
+png(filename = "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/pathway/GO_Biological_Process_2026_downregulated.png",
+    res = 400, units = "in",width = 12, height = 10)
+
+plotEnrich(dnEnriched_go[[3]],
+           showTerms = 25,
+           numChar = 80,
+           y = "Count",
+           orderBy = "Adjusted.P.value") +
+  ggtitle("conVEH_vs_conNAG(downregulated)") +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    axis.text.y = element_text(size = 10),
+    axis.text.x = element_text(size = 10)
+  )
+dev.off()
+```
+
+  Querying KEGG_2019_Mouse... Done.
+  Querying WikiPathways_2024_Mouse... Done.
+  Querying BioPlanet_2019... Done.
+  Querying KEGG_2026... Done.
+  Querying MSigDB_Hallmark_2020... Done.
+  Querying Mouse_Gene_Atlas... Done.
+  Querying Reactome_Pathways_2024... Done.
+  Querying HDSigDB_Mouse_2021... Done
+
+
+
+```{r}
+# Write each enrichment table to a separate CSV file
+write.csv(dnEnriched_pw[[1]], 
+          file = "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/pathway/KEGG_2019_Mouse_downregulated.csv",
+          row.names = FALSE)
+
+write.csv(dnEnriched_pw[[2]], 
+          file = "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/pathway/WikiPathways_2024_Mouse_downregulated.csv",
+          row.names = FALSE)
+
+write.csv(dnEnriched_pw[[3]], 
+          file = "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/pathway/BioPlanet_2019_pathway_downregulated.csv",
+          row.names = FALSE)
+write.csv(dnEnriched_pw[[4]], 
+          file = "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/pathway/KEGG_2026_downregulated.csv",
+          row.names = FALSE)
+
+write.csv(dnEnriched_pw[[5]], 
+          file = "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/pathway/MSigDB_Hallmark_2020_downregulated.csv",
+          row.names = FALSE)
+
+write.csv(dnEnriched_pw[[6]], 
+          file = "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/pathway/Mouse_Gene_Atlas_downregulated.csv",
+          row.names = FALSE)
+
+write.csv(dnEnriched_pw[[7]], 
+          file = "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/pathway/Reactome_Pathways_2024_downregulated.csv",
+          row.names = FALSE)
+write.csv(dnEnriched_pw[[8]], 
+          file = "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/pathway/HDSigDB_Mouse_2021_downregulated.csv",
+          row.names = FALSE)
+```
+
+
+```{r}
+write.csv(upEnriched_pw[[1]], 
+          file = "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/pathway/KEGG_2019_Mouse_upregulated.csv",
+          row.names = FALSE)
+
+write.csv(upEnriched_pw[[2]], 
+          file = "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/pathway/WikiPathways_2024_Mouse_upregulated.csv",
+          row.names = FALSE)
+
+write.csv(upEnriched_pw[[3]], 
+          file = "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/pathway/BioPlanet_2019_pathway_upregulated.csv",
+          row.names = FALSE)
+write.csv(upEnriched_pw[[4]], 
+          file = "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/pathway/KEGG_2026_upregulated.csv",
+          row.names = FALSE)
+
+write.csv(upEnriched_pw[[5]], 
+          file = "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/pathway/MSigDB_Hallmark_2020_upregulated.csv",
+          row.names = FALSE)
+
+write.csv(upEnriched_pw[[6]], 
+          file = "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/pathway/Mouse_Gene_Atlas_upregulated.csv",
+          row.names = FALSE)
+
+write.csv(upEnriched_pw[[7]], 
+          file = "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/pathway/Reactome_Pathways_2024_upregulated.csv",
+          row.names = FALSE)
+
+write.csv(upEnriched_pw[[8]], 
+          file = "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/pathway/HDSigDB_Mouse_2021_upregulated.csv",
+          row.names = FALSE)
+```
+
+# geneontology 
+```{r}
+```
+
+
+```{r}
+write.csv(upEnriched_go[[1]], 
+          file = "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/pathway/GO_Molecular_Function_2026_upregulated.csv",
+          row.names = FALSE)
+
+write.csv(upEnriched_go[[2]], 
+          file = "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/pathway/GO_Cellular_Component_2026_upregulated.csv",
+          row.names = FALSE)
+
+write.csv(upEnriched_go[[3]], 
+          file = "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/pathway/GO_Biological_Process_2026_upregulated.csv",
+          row.names = FALSE)
+
+write.csv(dnEnriched_go[[1]], 
+          file = "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/pathway/GO_Molecular_Function_2026_downregulated.csv",
+          row.names = FALSE)
+
+write.csv(dnEnriched_go[[2]], 
+          file = "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/pathway/GO_Cellular_Component_2026_downregulated.csv",
+          row.names = FALSE)
+
+write.csv(dnEnriched_go[[3]], 
+          file = "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/pathway/GO_Biological_Process_2026_downregulated.csv",
+          row.names = FALSE)
+```
+
+
+
+
+
+
+
+```{r}
+
+library(fgsea)
+#imporing all gmt pathway files using fgsea package downloaded from Molecular signature database
+cannonical_pathways <- gmtPathways("D:/sudipta_bulk_analysis/gmt files/cannonical.Mm.symbols.gmt")
+
+hallmark_gene_sets <- gmtPathways("D:/sudipta_bulk_analysis/gmt files/hallmark.symbols.gmt")
+
+ontology_gene_sets <- gmtPathways("D:/sudipta_bulk_analysis/gmt files/gene ontology..Mm.symbols.gmt")
+```
+
+### ontology_gene_set
+
+
+
+```{r}
+r_d <- as.data.frame(res_conVEH_vs_conNAG)
+sig_genes <- r_d %>% 
+    filter(padj < 0.05) %>% 
+    filter(log2FoldChange > 0.0 | log2FoldChange < 0.0)
+
+sig_genes <- sig_genes %>% dplyr::arrange(desc(log2FoldChange))
+
+stat_genes <- sig_genes$log2FoldChange
+names(stat_genes) <- sig_genes$gene_name
+
+stat_genes <- stat_genes[!duplicated(names(stat_genes))]
+stat_genes
+```
+
+
+
+```{r}
+ontology_gene_set_pathway <- fgsea(
+                              pathways = ontology_gene_sets,
+                              stats = stat_genes,
+                              minSize = 3,
+                              maxSize = 800,
+                              nproc = 1)
+
+
+convert_list_columns <- function(df) {
+ for (col in names(df)) {
+    if (is.list(df[[col]])) {
+      df[[col]] <- sapply(df[[col]], toString)
+    }
+  }
+  return(df)
+}
+ontology_gene_set_pathway <- convert_list_columns(ontology_gene_set_pathway)
+write.csv(ontology_gene_set_pathway,"D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/pathway/fgsea_ontology_gene_set_pathway.csv")
+```
+
+
+### cannonical_pathways
+
+
+
+```{r}
+cannonical_gene_set_pathway <- fgsea(
+                              pathways = cannonical_pathways,
+                              stats = stat_genes,
+                              minSize = 3,
+                              maxSize = 800,
+                              nproc = 1)
+
+
+convert_list_columns <- function(df) {
+ for (col in names(df)) {
+    if (is.list(df[[col]])) {
+      df[[col]] <- sapply(df[[col]], toString)
+    }
+  }
+  return(df)
+}
+cannonical_gene_set_pathway <- convert_list_columns(cannonical_gene_set_pathway)
+write.csv(cannonical_gene_set_pathway,"D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/pathway/fgsea_cannonical_gene_set_pathway.csv")
+```
+
+
+##hallmark_gene_sets
+
+
+```{r}
+hallmark_gene_sets_pathway <- fgsea(
+                              pathways = hallmark_gene_sets,
+                              stats = stat_genes,
+                              minSize = 3,
+                              maxSize = 800,
+                              nproc = 1)
+
+
+convert_list_columns <- function(df) {
+ for (col in names(df)) {
+    if (is.list(df[[col]])) {
+      df[[col]] <- sapply(df[[col]], toString)
+    }
+  }
+  return(df)
+}
+hallmark_gene_sets_pathway <- convert_list_columns(hallmark_gene_sets_pathway)
+write.csv(hallmark_gene_sets_pathway,"D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/pathway/fgsea_hallmark_gene_sets_pathway.csv")
+```
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+# ════════════════════════════════════════════════════════════════════════
+# FGSEA TOP 25 BARPLOTS (UP & DOWN)
+# ════════════════════════════════════════════════════════════════════════
+
+library(tidyverse)
+library(ggplot2)
+library(scales)
+library(stringr)
+
+# ════════════════════════════════════════════════════════════════════════
+# LOAD FGSEA CSV
+# ════════════════════════════════════════════════════════════════════════
+
+fgsea_df <- read.csv(
+  "D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/pathway/fgsea_cannonical_gene_set_pathway.csv",
+  stringsAsFactors = FALSE
+)
+
+# ════════════════════════════════════════════════════════════════════════
+# FORCE NUMERIC
+# ════════════════════════════════════════════════════════════════════════
+
+fgsea_df$NES  <- as.numeric(fgsea_df$NES)
+fgsea_df$padj <- as.numeric(fgsea_df$padj)
+fgsea_df$pval <- as.numeric(fgsea_df$pval)
+
+# ════════════════════════════════════════════════════════════════════════
+# PARAMETERS
+# ════════════════════════════════════════════════════════════════════════
+
+PADJ_CUT  <- 0.05
+TOP_N     <- 25
+COMP_NAME <- "conVEH_vs_conNAG"
+
+# ════════════════════════════════════════════════════════════════════════
+# FILTER SIGNIFICANT
+# ════════════════════════════════════════════════════════════════════════
+
+sig_df <- fgsea_df %>%
+  filter(!is.na(padj)) %>%
+  filter(padj < PADJ_CUT)
+
+cat("Significant pathways:", nrow(sig_df), "\n")
+
+# ════════════════════════════════════════════════════════════════════════
+# TOP UPREGULATED
+# ════════════════════════════════════════════════════════════════════════
+
+up_df <- sig_df %>%
+  filter(NES > 0) %>%
+  arrange(desc(NES)) %>%
+  slice_head(n = TOP_N)
+
+# ════════════════════════════════════════════════════════════════════════
+# TOP DOWNREGULATED
+# ════════════════════════════════════════════════════════════════════════
+
+down_df <- sig_df %>%
+  filter(NES < 0) %>%
+  arrange(NES) %>%
+  slice_head(n = TOP_N)
+
+# ════════════════════════════════════════════════════════════════════════
+# CLEAN PATHWAY NAMES
+# ════════════════════════════════════════════════════════════════════════
+
+clean_names <- function(df) {
+
+  df %>%
+    mutate(
+      pathway_clean = gsub("\\s+WP\\d+$", "", pathway),
+      pathway_clean = str_replace_all(pathway_clean, "_", " "),
+      pathway_clean = str_wrap(pathway_clean, width = 40)
+    )
+}
+
+up_df   <- clean_names(up_df)
+down_df <- clean_names(down_df)
+
+# ════════════════════════════════════════════════════════════════════════
+# PLOTTING FUNCTION
+# ════════════════════════════════════════════════════════════════════════
+
+make_fgsea_plot <- function(df,
+                            title_text,
+                            direction = "UP") {
+
+  if(nrow(df) == 0) {
+    message("No pathways found")
+    return(NULL)
+  }
+
+  # reorder
+  df <- df %>%
+    arrange(NES) %>%
+    mutate(
+      pathway_clean = factor(
+        pathway_clean,
+        levels = pathway_clean
+      )
+    )
+
+  # colors
+  if(direction == "UP") {
+
+    low_col  <- "red"
+    high_col <- "deeppink3"
+
+  } else {
+
+    low_col  <- "dodgerblue3"
+    high_col <- "mediumpurple3"
+  }
+
+  p <- ggplot(df,
+              aes(x = NES,
+                  y = pathway_clean,
+                  fill = padj)) +
+
+    geom_col(width = 0.85) +
+
+    scale_fill_gradient(
+      low  = low_col,
+      high = high_col,
+      name = "Adjusted\nP value"
+    ) +
+
+    geom_vline(
+      xintercept = 0,
+      linewidth  = 0.7,
+      color      = "black"
+    ) +
+
+    labs(
+      title = title_text,
+      x = "Normalized Enrichment Score (NES)",
+      y = "Enriched terms"
+    ) +
+
+    theme_bw(base_size = 13) +
+
+    theme(
+      plot.title = element_text(
+        hjust = 0.5,
+        face = "bold",
+        size = 15
+      ),
+
+      axis.text.y = element_text(
+        size = 10,
+        color = "black"
+      ),
+
+      axis.text.x = element_text(
+        size = 10,
+        color = "black"
+      ),
+
+      axis.title = element_text(
+        face = "bold",
+        size = 12
+      ),
+
+      panel.grid.major.y = element_blank(),
+
+      panel.grid.major.x = element_line(
+        color = "grey85"
+      ),
+
+      panel.grid.minor = element_blank(),
+
+      legend.title = element_text(
+        face = "bold"
+      ),
+
+      legend.position = "right",
+
+      panel.border = element_rect(
+        linewidth = 0.8,
+        color = "black"
+      )
+    )
+
+  return(p)
+}
+
+# ════════════════════════════════════════════════════════════════════════
+# MAKE PLOTS
+# ════════════════════════════════════════════════════════════════════════
+
+p_up <- make_fgsea_plot(
+  up_df,
+  paste0(COMP_NAME, " (Upregulated)"),
+  direction = "UP"
+)
+
+p_down <- make_fgsea_plot(
+  down_df,
+  paste0(COMP_NAME, " (Downregulated)"),
+  direction = "DOWN"
+)
+
+# ════════════════════════════════════════════════════════════════════════
+# DISPLAY
+# ════════════════════════════════════════════════════════════════════════
+
+print(p_up)
+print(p_down)
+
+# ════════════════════════════════════════════════════════════════════════
+# SAVE
+# ════════════════════════════════════════════════════════════════════════
+
+out_dir <- paste0(
+  "D:/ASHISH/lams_analysis/new_analysis/",
+  COMP_NAME,
+  "/fgsea_barplots"
+)
+
+dir.create(out_dir,
+           recursive = TRUE,
+           showWarnings = FALSE)
+
+# ── UP ────────────────────────────────────────────────────────────────
+
+ggsave(
+  file.path(out_dir,
+            paste0(COMP_NAME, "_UP_barplot.pdf")),
+  p_up,
+  width = 11,
+  height = 9
+)
+
+ggsave(
+  file.path(out_dir,
+            paste0(COMP_NAME, "_UP_barplot.png")),
+  p_up,
+  width = 11,
+  height = 9,
+  dpi = 600
+)
+
+# ── DOWN ──────────────────────────────────────────────────────────────
+
+ggsave(
+  file.path(out_dir,
+            paste0(COMP_NAME, "_DOWN_barplot.pdf")),
+  p_down,
+  width = 11,
+  height = 9
+)
+
+ggsave(
+  file.path(out_dir,
+            paste0(COMP_NAME, "_DOWN_barplot.png")),
+  p_down,
+  width = 11,
+  height = 9,
+  dpi = 600
+)
+
+cat(" Plots saved successfully\n")
+```
+
+D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_conNAG/pathway = D
+D:/ASHISH/lams_analysis/new_analysis/conNAG_vs_LAMNAG/pathway =C
+D:/ASHISH/lams_analysis/new_analysis/conVEH_vs_LAMVEH/pathway =B
+D:/ASHISH/lams_analysis/new_analysis/LAMVEH_vs_LAMNAG/pathway =A
+
+```{r}
+# ════════════════════════════════════════════════════════════════════════
+# FGSEA MULTI-FILE BARPLOTS
+# ════════════════════════════════════════════════════════════════════════
+
+library(tidyverse)
+library(ggplot2)
+library(stringr)
+library(scales)
+
+# ════════════════════════════════════════════════════════════════════════
+# INPUT FILES
+# ════════════════════════════════════════════════════════════════════════
+
+fgsea_files <- c(
+
+  "D:/ASHISH/lams_analysis/new_analysis/LAMVEH_vs_LAMNAG/pathway/fgsea_cannonical_gene_set_pathway.csv",
+
+  "D:/ASHISH/lams_analysis/new_analysis/LAMVEH_vs_LAMNAG/pathway/fgsea_ontology_gene_set_pathway.csv",
+
+  "D:/ASHISH/lams_analysis/new_analysis/LAMVEH_vs_LAMNAG/pathway/fgsea_hallmark_gene_sets_pathway.csv"
+)
+
+# ════════════════════════════════════════════════════════════════════════
+# PARAMETERS
+# ════════════════════════════════════════════════════════════════════════
+
+PADJ_CUT  <- 0.05
+PVAL_CUT  <- 0.05
+TOP_N     <- 25
+COMP_NAME <- "LAMVEH_vs_LAMNAG"
+
+# ════════════════════════════════════════════════════════════════════════
+# PLOTTING FUNCTION
+# ════════════════════════════════════════════════════════════════════════
+
+make_fgsea_plot <- function(df,
+                            title_text,
+                            direction = "UP") {
+
+  if(nrow(df) == 0) {
+    message("No pathways to plot")
+    return(NULL)
+  }
+
+  df <- df %>%
+    mutate(
+      pathway_clean = gsub("\\s+WP\\d+$", "", pathway),
+      pathway_clean = str_replace_all(pathway_clean, "_", " "),
+      pathway_clean = str_wrap(pathway_clean, width = 45)
+    ) %>%
+    arrange(NES) %>%
+    mutate(
+      pathway_clean = factor(
+        pathway_clean,
+        levels = pathway_clean
+      )
+    )
+
+  if(direction == "UP") {
+
+    low_col  <- "red"
+    high_col <- "deeppink3"
+
+  } else {
+
+    low_col  <- "dodgerblue3"
+    high_col <- "mediumpurple3"
+  }
+
+  p <- ggplot(df,
+              aes(x = NES,
+                  y = pathway_clean,
+                  fill = padj_plot)) +
+
+    geom_col(width = 0.85) +
+
+    geom_vline(
+      xintercept = 0,
+      color = "black",
+      linewidth = 0.7
+    ) +
+
+    scale_fill_gradient(
+      low = low_col,
+      high = high_col,
+      name = "Adjusted\nP value"
+    ) +
+
+    labs(
+      title = title_text,
+      x = "Normalized Enrichment Score (NES)",
+      y = "Enriched terms"
+    ) +
+
+    theme_bw(base_size = 13) +
+
+    theme(
+      plot.title = element_text(
+        face = "bold",
+        hjust = 0.5,
+        size = 15
+      ),
+
+      axis.text.y = element_text(
+        size = 10,
+        color = "black"
+      ),
+
+      axis.text.x = element_text(
+        size = 8,
+        color = "black"
+      ),
+
+      axis.title = element_text(
+        face = "bold"
+      ),
+
+      panel.grid.major.y = element_blank(),
+
+      panel.grid.major.x = element_line(
+        color = "grey85"
+      ),
+
+      panel.grid.minor = element_blank(),
+
+      legend.title = element_text(
+        face = "bold"
+      ),
+
+      panel.border = element_rect(
+        linewidth = 0.8,
+        color = "black",
+        fill = NA
+      )
+    )
+
+  return(p)
+}
+
+# ════════════════════════════════════════════════════════════════════════
+# OUTPUT DIRECTORY
+# ════════════════════════════════════════════════════════════════════════
+
+out_dir <- paste0(
+  "D:/ASHISH/lams_analysis/new_analysis/LAMVEH_vs_LAMNAG/pathway/",
+  COMP_NAME,
+  "/FGSEA_BARPLOTS"
+)
+
+dir.create(out_dir,
+           recursive = TRUE,
+           showWarnings = FALSE)
+
+# ════════════════════════════════════════════════════════════════════════
+# LOOP THROUGH FILES
+# ════════════════════════════════════════════════════════════════════════
+
+for(file in fgsea_files) {
+
+  cat("\n====================================================\n")
+  cat("Processing:\n", file, "\n")
+
+  # ── read file ─────────────────────────────────────────
+
+  fgsea_df <- read.csv(
+    file,
+    stringsAsFactors = FALSE
+  )
+
+  # ── numeric conversion ────────────────────────────────
+
+  fgsea_df$NES  <- as.numeric(fgsea_df$NES)
+  fgsea_df$padj <- as.numeric(fgsea_df$padj)
+  fgsea_df$pval <- as.numeric(fgsea_df$pval)
+
+  # ── dataset name ──────────────────────────────────────
+
+  dataset_name <- basename(file)
+  dataset_name <- gsub(".csv", "", dataset_name)
+
+  cat("Rows:", nrow(fgsea_df), "\n")
+
+  # ── significant pathways ──────────────────────────────
+
+  sig_df <- fgsea_df %>%
+    filter(!is.na(NES))
+
+  sig_padj <- sig_df %>%
+    filter(!is.na(padj)) %>%
+    filter(padj < PADJ_CUT)
+
+  if(nrow(sig_padj) > 0) {
+
+    cat("Using padj < 0.05\n")
+
+    sig_df <- sig_padj
+    sig_df$padj_plot <- sig_df$padj
+
+  } else {
+
+    cat("No padj hits found\n")
+    cat("Using pval < 0.05 instead\n")
+
+    sig_df <- sig_df %>%
+      filter(pval < PVAL_CUT)
+
+    sig_df$padj_plot <- sig_df$pval
+  }
+
+  cat("Significant pathways:", nrow(sig_df), "\n")
+
+  # ── top upregulated ───────────────────────────────────
+
+  up_df <- sig_df %>%
+    filter(NES > 0) %>%
+    arrange(desc(NES)) %>%
+    slice_head(n = TOP_N)
+
+  # ── top downregulated ─────────────────────────────────
+
+  down_df <- sig_df %>%
+    filter(NES < 0) %>%
+    arrange(NES) %>%
+    slice_head(n = TOP_N)
+
+  cat("UP pathways  :", nrow(up_df), "\n")
+  cat("DOWN pathways:", nrow(down_df), "\n")
+
+  # ── make plots ────────────────────────────────────────
+
+  p_up <- make_fgsea_plot(
+    up_df,
+    paste0(dataset_name, " (Upregulated)"),
+    direction = "UP"
+  )
+
+  p_down <- make_fgsea_plot(
+    down_df,
+    paste0(dataset_name, " (Downregulated)"),
+    direction = "DOWN"
+  )
+
+  # ── display ───────────────────────────────────────────
+
+  if(!is.null(p_up)) print(p_up)
+  if(!is.null(p_down)) print(p_down)
+
+  # ── save up ───────────────────────────────────────────
+
+  if(!is.null(p_up)) {
+
+    ggsave(
+      file.path(
+        out_dir,
+        paste0(dataset_name, "_UP.png")
+      ),
+      p_up,
+      width = 11,
+      height = 12,
+      dpi = 600
+    )
+
+    ggsave(
+      file.path(
+        out_dir,
+        paste0(dataset_name, "_UP.pdf")
+      ),
+      p_up,
+      width = 11,
+      height = 12
+    )
+  }
+
+  # ── save down ─────────────────────────────────────────
+
+  if(!is.null(p_down)) {
+
+    ggsave(
+      file.path(
+        out_dir,
+        paste0(dataset_name, "_DOWN.png")
+      ),
+      p_down,
+      width = 11,
+      height = 12,
+      dpi = 600
+    )
+
+    ggsave(
+      file.path(
+        out_dir,
+        paste0(dataset_name, "_DOWN.pdf")
+      ),
+      p_down,
+      width = 11,
+      height = 12
+    )
+  }
+
+  cat("Finished:", dataset_name, "\n")
+}
+
+cat("\n ALL FGSEA PLOTS GENERATED\n")
+```
+
+
+
+
